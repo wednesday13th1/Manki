@@ -325,11 +325,21 @@ final class MusicViewController: BaseViewController {
 
     @available(iOS 15.0, *)
     private func loadApplePlaylist(_ snapshot: AppleMusicPlaylistSnapshot) {
-        sourceMode = .applePlaylist(title: snapshot.title)
         let mappedSongs = snapshot.songs.map(MankiSong.init(from:))
+        let savedPlaylist = MusicPlaylistStore.shared.saveAppleMusicPlaylist(
+            id: snapshot.id,
+            name: snapshot.title,
+            songs: mappedSongs
+        )
+        sourceMode = .localPlaylist(title: savedPlaylist.name)
+        userPlaylists = MusicPlaylistStore.shared.getPlaylists()
         appleMusicSongsByID = Dictionary(uniqueKeysWithValues: zip(mappedSongs.map(\.id), snapshot.songs))
         songs = mappedSongs
-        refreshContent(note: snapshot.songs.isEmpty ? "このプレイリストには曲がありません。" : "Apple Musicの曲をそのまま開けます。")
+        refreshContent(
+            note: snapshot.songs.isEmpty
+                ? "Apple Music プレイリストを manki に保存しました。曲はまだ入っていません。"
+                : "Apple Music の曲を appleMusicID 付きで manki プレイリストに保存しました。再生時は保存済み ID から再取得します。"
+        )
     }
 
     private func openLyrics(for song: MankiSong, startLearning: Bool) {

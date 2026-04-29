@@ -132,12 +132,18 @@ struct MankiPlaylist: Codable, Hashable {
     var name: String
     var songs: [MankiSong]
     var type: PlaylistType
+    var appleMusicPlaylistID: String?
 
-    init(id: UUID = UUID(), name: String, songs: [MankiSong], type: PlaylistType) {
+    init(id: UUID = UUID(),
+         name: String,
+         songs: [MankiSong],
+         type: PlaylistType,
+         appleMusicPlaylistID: String? = nil) {
         self.id = id
         self.name = name
         self.songs = songs
         self.type = type
+        self.appleMusicPlaylistID = appleMusicPlaylistID
     }
 
     var title: String {
