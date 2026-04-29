@@ -241,6 +241,11 @@
 				TargetAttributes = {
 					2CF7FA842EFE80B500BCC44B = {
 						CreatedOnToolsVersion = 16.1;
+						SystemCapabilities = {
+							com.apple.MusicKit = {
+								enabled = 1;
+							};
+						};
 					};
 					2CF7FA9A2EFE80B600BCC44B = {
 						CreatedOnToolsVersion = 16.1;

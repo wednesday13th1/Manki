@@ -29,5 +29,6 @@ class BaseViewController: UIViewController {
     func applyBaseTheme() {
         ThemeManager.applyBackground(to: view)
         ThemeManager.applyNavigationAppearance(to: navigationController)
+        FontManager.applyPixelFont(to: view)
     }
 }

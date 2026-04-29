@@ -32,6 +32,12 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
     private let cardView = UIView()
     private var themeObserver: NSObjectProtocol?
     private let closeButton = UIButton(type: .system)
+    private let themeIconView = UIImageView()
+    private let backgroundIconView = UIImageView()
+    private let opacityIconView = UIImageView()
+    private let tintIconView = UIImageView()
+    private let textSizeIconView = UIImageView()
+    private let readabilityIconView = UIImageView()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -86,6 +92,20 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
         readabilityTitleLabel.textAlignment = .left
         readabilityValueLabel.textAlignment = .right
 
+        let icons = [
+            (themeIconView, "paintpalette.fill"),
+            (backgroundIconView, "photo.fill"),
+            (opacityIconView, "sun.max.fill"),
+            (tintIconView, "music.note"),
+            (textSizeIconView, "textformat.size"),
+            (readabilityIconView, "bell.fill")
+        ]
+        icons.forEach { imageView, symbol in
+            imageView.translatesAutoresizingMaskIntoConstraints = false
+            imageView.image = UIImage(systemName: symbol)
+            imageView.contentMode = .scaleAspectFit
+        }
+
         themeStack.axis = .horizontal
         themeStack.spacing = AppSpacing.s(12)
         themeStack.alignment = .center
@@ -134,19 +154,25 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
         stack.translatesAutoresizingMaskIntoConstraints = false
 
         view.addSubview(stack)
+        cardView.addSubview(themeIconView)
         cardView.addSubview(themeTitleLabel)
         cardView.addSubview(themeStack)
+        cardView.addSubview(backgroundIconView)
         cardView.addSubview(backgroundTitleLabel)
         cardView.addSubview(backgroundButton)
+        cardView.addSubview(opacityIconView)
         cardView.addSubview(opacityTitleLabel)
         cardView.addSubview(opacityValueLabel)
         cardView.addSubview(opacitySlider)
+        cardView.addSubview(tintIconView)
         cardView.addSubview(tintTitleLabel)
         cardView.addSubview(tintValueLabel)
         cardView.addSubview(tintSlider)
+        cardView.addSubview(textSizeIconView)
         cardView.addSubview(textSizeTitleLabel)
         cardView.addSubview(textSizeValueLabel)
         cardView.addSubview(textSizeSegmented)
+        cardView.addSubview(readabilityIconView)
         cardView.addSubview(readabilityTitleLabel)
         cardView.addSubview(readabilityValueLabel)
         cardView.addSubview(readabilitySlider)
@@ -172,8 +198,13 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
 
             cardView.bottomAnchor.constraint(equalTo: readabilitySlider.bottomAnchor, constant: AppSpacing.s(18)),
 
+            themeIconView.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: AppSpacing.s(16)),
+            themeIconView.centerYAnchor.constraint(equalTo: themeTitleLabel.centerYAnchor),
+            themeIconView.widthAnchor.constraint(equalToConstant: 18),
+            themeIconView.heightAnchor.constraint(equalToConstant: 18),
+
             themeTitleLabel.topAnchor.constraint(equalTo: cardView.topAnchor, constant: AppSpacing.s(12)),
-            themeTitleLabel.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: AppSpacing.s(16)),
+            themeTitleLabel.leadingAnchor.constraint(equalTo: themeIconView.trailingAnchor, constant: AppSpacing.s(8)),
             themeTitleLabel.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -AppSpacing.s(16)),
 
             themeStack.topAnchor.constraint(equalTo: themeTitleLabel.bottomAnchor, constant: AppSpacing.s(12)),
@@ -181,8 +212,13 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
             themeStack.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -AppSpacing.s(16)),
             themeStack.heightAnchor.constraint(equalToConstant: 36),
 
+            backgroundIconView.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: AppSpacing.s(16)),
+            backgroundIconView.centerYAnchor.constraint(equalTo: backgroundTitleLabel.centerYAnchor),
+            backgroundIconView.widthAnchor.constraint(equalToConstant: 18),
+            backgroundIconView.heightAnchor.constraint(equalToConstant: 18),
+
             backgroundTitleLabel.topAnchor.constraint(equalTo: themeStack.bottomAnchor, constant: AppSpacing.s(20)),
-            backgroundTitleLabel.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: AppSpacing.s(16)),
+            backgroundTitleLabel.leadingAnchor.constraint(equalTo: backgroundIconView.trailingAnchor, constant: AppSpacing.s(8)),
             backgroundTitleLabel.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -AppSpacing.s(16)),
 
             backgroundButton.topAnchor.constraint(equalTo: backgroundTitleLabel.bottomAnchor, constant: AppSpacing.s(10)),
@@ -190,8 +226,13 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
             backgroundButton.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -AppSpacing.s(16)),
             backgroundButton.heightAnchor.constraint(equalToConstant: 40),
 
+            opacityIconView.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: AppSpacing.s(16)),
+            opacityIconView.centerYAnchor.constraint(equalTo: opacityTitleLabel.centerYAnchor),
+            opacityIconView.widthAnchor.constraint(equalToConstant: 18),
+            opacityIconView.heightAnchor.constraint(equalToConstant: 18),
+
             opacityTitleLabel.topAnchor.constraint(equalTo: backgroundButton.bottomAnchor, constant: AppSpacing.s(16)),
-            opacityTitleLabel.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: AppSpacing.s(16)),
+            opacityTitleLabel.leadingAnchor.constraint(equalTo: opacityIconView.trailingAnchor, constant: AppSpacing.s(8)),
             opacityTitleLabel.trailingAnchor.constraint(lessThanOrEqualTo: opacityValueLabel.leadingAnchor, constant: -AppSpacing.s(8)),
 
             opacityValueLabel.centerYAnchor.constraint(equalTo: opacityTitleLabel.centerYAnchor),
@@ -202,8 +243,13 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
             opacitySlider.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: AppSpacing.s(16)),
             opacitySlider.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -AppSpacing.s(16)),
 
+            tintIconView.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: AppSpacing.s(16)),
+            tintIconView.centerYAnchor.constraint(equalTo: tintTitleLabel.centerYAnchor),
+            tintIconView.widthAnchor.constraint(equalToConstant: 18),
+            tintIconView.heightAnchor.constraint(equalToConstant: 18),
+
             tintTitleLabel.topAnchor.constraint(equalTo: opacitySlider.bottomAnchor, constant: AppSpacing.s(18)),
-            tintTitleLabel.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: AppSpacing.s(16)),
+            tintTitleLabel.leadingAnchor.constraint(equalTo: tintIconView.trailingAnchor, constant: AppSpacing.s(8)),
             tintTitleLabel.trailingAnchor.constraint(lessThanOrEqualTo: tintValueLabel.leadingAnchor, constant: -AppSpacing.s(8)),
 
             tintValueLabel.centerYAnchor.constraint(equalTo: tintTitleLabel.centerYAnchor),
@@ -214,8 +260,13 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
             tintSlider.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: AppSpacing.s(16)),
             tintSlider.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -AppSpacing.s(16)),
 
+            textSizeIconView.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: AppSpacing.s(16)),
+            textSizeIconView.centerYAnchor.constraint(equalTo: textSizeTitleLabel.centerYAnchor),
+            textSizeIconView.widthAnchor.constraint(equalToConstant: 18),
+            textSizeIconView.heightAnchor.constraint(equalToConstant: 18),
+
             textSizeTitleLabel.topAnchor.constraint(equalTo: tintSlider.bottomAnchor, constant: AppSpacing.s(18)),
-            textSizeTitleLabel.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: AppSpacing.s(16)),
+            textSizeTitleLabel.leadingAnchor.constraint(equalTo: textSizeIconView.trailingAnchor, constant: AppSpacing.s(8)),
             textSizeTitleLabel.trailingAnchor.constraint(lessThanOrEqualTo: textSizeValueLabel.leadingAnchor, constant: -AppSpacing.s(8)),
 
             textSizeValueLabel.centerYAnchor.constraint(equalTo: textSizeTitleLabel.centerYAnchor),
@@ -227,8 +278,13 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
             textSizeSegmented.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -AppSpacing.s(16)),
             textSizeSegmented.heightAnchor.constraint(equalToConstant: 36),
 
+            readabilityIconView.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: AppSpacing.s(16)),
+            readabilityIconView.centerYAnchor.constraint(equalTo: readabilityTitleLabel.centerYAnchor),
+            readabilityIconView.widthAnchor.constraint(equalToConstant: 18),
+            readabilityIconView.heightAnchor.constraint(equalToConstant: 18),
+
             readabilityTitleLabel.topAnchor.constraint(equalTo: textSizeSegmented.bottomAnchor, constant: AppSpacing.s(18)),
-            readabilityTitleLabel.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: AppSpacing.s(16)),
+            readabilityTitleLabel.leadingAnchor.constraint(equalTo: readabilityIconView.trailingAnchor, constant: AppSpacing.s(8)),
             readabilityTitleLabel.trailingAnchor.constraint(lessThanOrEqualTo: readabilityValueLabel.leadingAnchor, constant: -AppSpacing.s(8)),
 
             readabilityValueLabel.centerYAnchor.constraint(equalTo: readabilityTitleLabel.centerYAnchor),
@@ -319,6 +375,7 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
         let palette = ThemeManager.palette()
         ThemeManager.applyBackground(to: view)
         ThemeManager.applyNavigationAppearance(to: navigationController)
+        FontManager.applyPixelFont(to: view)
         if let navigationBar = navigationController?.navigationBar {
             let appearance = UINavigationBarAppearance()
             appearance.configureWithOpaqueBackground()
@@ -365,6 +422,9 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
         readabilityTitleLabel.textColor = palette.text
         readabilityValueLabel.font = AppFont.en(size: 18)
         readabilityValueLabel.textColor = palette.text
+        [themeIconView, backgroundIconView, opacityIconView, tintIconView, textSizeIconView, readabilityIconView].forEach {
+            $0.tintColor = palette.accentStrong
+        }
 
         cardView.backgroundColor = palette.surface.withAlphaComponent(0.95)
         cardView.layer.borderColor = palette.border.cgColor

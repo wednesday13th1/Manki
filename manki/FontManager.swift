@@ -22,7 +22,39 @@ enum FontManager {
                 return font
             }
         }
-        return UIFont.systemFont(ofSize: pointSize, weight: weight)
+        return UIFont.monospacedSystemFont(ofSize: pointSize, weight: weight)
+    }
+
+    static func pixelFont(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont {
+        font(.body, size: size, weight: weight)
+    }
+
+    static func applyPixelFont(to view: UIView) {
+        var queue: [UIView] = [view]
+        while !queue.isEmpty {
+            let current = queue.removeFirst()
+            let className = NSStringFromClass(type(of: current))
+            if className.contains("UI") || className.contains("UILabel") || className.contains("UIButton") || className.contains("UIText") {
+                if let label = current as? UILabel {
+                    label.font = pixelFont(size: label.font.pointSize, weight: inferredWeight(from: label.font))
+                } else if let button = current as? UIButton {
+                    let size = button.titleLabel?.font.pointSize ?? defaultSize(for: .button)
+                    button.titleLabel?.font = pixelFont(size: size, weight: .bold)
+                } else if let textField = current as? UITextField {
+                    let size = textField.font?.pointSize ?? defaultSize(for: .body)
+                    textField.font = pixelFont(size: size, weight: inferredWeight(from: textField.font))
+                } else if let textView = current as? UITextView {
+                    let size = textView.font?.pointSize ?? defaultSize(for: .body)
+                    textView.font = pixelFont(size: size, weight: inferredWeight(from: textView.font))
+                }
+            }
+
+            let childViews = current.subviews.filter { child in
+                let childClass = NSStringFromClass(type(of: child))
+                return !childClass.contains("LayoutCanvasView") && !childClass.hasPrefix("_")
+            }
+            queue.append(contentsOf: childViews)
+        }
     }
 
     static func applyGlobalAppearance() {
@@ -63,5 +95,12 @@ enum FontManager {
                 ? ["DotGothic16-Regular", "PixelMplus10-Bold", "PixelMplus12-Bold", "PressStart2P-Regular"]
                 : ["DotGothic16-Regular", "PixelMplus10-Regular", "PixelMplus12-Regular", "PressStart2P-Regular"]
         }
+    }
+
+    private static func inferredWeight(from font: UIFont?) -> UIFont.Weight {
+        guard let font else { return .regular }
+        let traits = font.fontDescriptor.object(forKey: .traits) as? [UIFontDescriptor.TraitKey: Any]
+        let rawWeight = traits?[.weight] as? CGFloat ?? UIFont.Weight.regular.rawValue
+        return UIFont.Weight(rawValue: rawWeight)
     }
 }
