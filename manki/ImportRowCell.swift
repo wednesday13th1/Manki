@@ -31,8 +31,8 @@ final class ImportRowCell: UITableViewCell {
         termLabel.numberOfLines = 0
         meaningLabel.numberOfLines = 0
 
-        termLabel.font = .systemFont(ofSize: 16, weight: .medium)
-        meaningLabel.font = .systemFont(ofSize: 16, weight: .regular)
+        termLabel.font = AppFont.jp(size: 16, weight: .bold)
+        meaningLabel.font = AppFont.jp(size: 16)
 
         divider.backgroundColor = UIColor.systemGray4
 

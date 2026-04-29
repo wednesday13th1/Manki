@@ -228,6 +228,7 @@ final class SideMenuViewController: UIViewController {
         let action = items[sender.tag].action
         animateOut { [weak self] in
             self?.dismiss(animated: false) {
+                self?.onDismiss?()
                 action()
             }
         }

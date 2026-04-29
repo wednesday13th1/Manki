@@ -46,23 +46,22 @@ enum FontManager {
     }
 
     private static func fontNames(for role: Role, weight: UIFont.Weight) -> [String] {
+        let jpPreferredBold = ["DotGothic16-Regular", "PixelMplus12-Bold", "PixelMplus10-Bold", "PressStart2P-Regular"]
+        let jpPreferredRegular = ["DotGothic16-Regular", "PixelMplus12-Regular", "PixelMplus10-Regular", "PressStart2P-Regular"]
+
         switch role {
         case .display:
-            return ["PressStart2P-Regular", "PixelMplus12-Bold", "PixelMplus12-Regular"]
+            return ["DotGothic16-Regular", "PressStart2P-Regular", "PixelMplus12-Bold", "PixelMplus12-Regular"]
         case .title:
-            return ["PixelMplus12-Bold", "PixelMplus12-Regular"]
+            return ["DotGothic16-Regular", "PixelMplus12-Bold", "PixelMplus12-Regular", "PressStart2P-Regular"]
         case .navigationTitle, .button:
-            return weight >= .semibold
-                ? ["PixelMplus12-Bold", "PixelMplus10-Bold"]
-                : ["PixelMplus12-Regular", "PixelMplus10-Regular"]
+            return weight >= .semibold ? jpPreferredBold : jpPreferredRegular
         case .body:
-            return weight >= .semibold
-                ? ["PixelMplus12-Bold", "PixelMplus10-Bold"]
-                : ["PixelMplus12-Regular", "PixelMplus10-Regular"]
+            return weight >= .semibold ? jpPreferredBold : jpPreferredRegular
         case .small:
             return weight >= .semibold
-                ? ["PixelMplus10-Bold", "PixelMplus12-Bold"]
-                : ["PixelMplus10-Regular", "PixelMplus12-Regular"]
+                ? ["DotGothic16-Regular", "PixelMplus10-Bold", "PixelMplus12-Bold", "PressStart2P-Regular"]
+                : ["DotGothic16-Regular", "PixelMplus10-Regular", "PixelMplus12-Regular", "PressStart2P-Regular"]
         }
     }
 }

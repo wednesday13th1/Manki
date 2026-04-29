@@ -92,7 +92,7 @@ final class QuizViewController: UIViewController {
 
         heroIconLabel.text = "🎮"
         heroIconLabel.textAlignment = .center
-        heroIconLabel.font = UIFontMetrics(forTextStyle: .largeTitle).scaledFont(for: .systemFont(ofSize: AppSpacing.s(40)))
+        heroIconLabel.font = UIFontMetrics(forTextStyle: .largeTitle).scaledFont(for: AppFont.jp(size: AppSpacing.s(32), weight: .bold))
         heroIconLabel.adjustsFontForContentSizeCategory = true
 
         titleLabel.text = "クイズメニュー"

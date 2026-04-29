@@ -6,6 +6,8 @@
 	<string>AIzaSyDuSLNEx3ihh4R-tS9kPlgBqxynaBQk4XE</string>
 	<key>NSCameraUsageDescription</key>
 	<string>単語帳の画像から単語を読み取るためにカメラを使用します。</string>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>Apple Musicの曲情報を検索してPlaylistへ追加するために使用します。</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>単語帳の画像を読み取るために写真へのアクセスが必要です。</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

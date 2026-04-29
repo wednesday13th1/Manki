@@ -2,48 +2,64 @@ import UIKit
 
 enum AppRoute: CaseIterable {
     case home
-    case folder
+    case music
     case sets
+    case test
+    case record
+    case settings
+    case folder
     case playlists
     case flip
-    case test
-    case settings
+
+    static let menuRoutes: [AppRoute] = [.home, .music, .sets, .test, .record, .settings]
 
     var title: String {
         switch self {
-        case .home: return "ホーム"
-        case .folder: return "フォルダー検索"
-        case .sets: return "学習セット"
+        case .home: return "Home"
+        case .music: return "Music"
+        case .sets: return "Study"
+        case .test: return "Test"
+        case .record: return "Record"
+        case .settings: return "Settings"
+        case .folder: return "Folder"
         case .playlists: return "Playlist"
-        case .flip: return "フリップ"
-        case .test: return "テスト"
-        case .settings: return "設定"
+        case .flip: return "Flip"
         }
     }
 
     var systemImageName: String {
         switch self {
         case .home: return "house.fill"
+        case .music: return "music.note.list"
+        case .sets: return "book.fill"
+        case .test: return "checkmark.circle.fill"
+        case .record: return "calendar"
+        case .settings: return "gearshape.fill"
         case .folder: return "folder.fill"
-        case .sets: return "square.stack.3d.up.fill"
         case .playlists: return "music.note.list"
         case .flip: return "rectangle.on.rectangle.angled.fill"
-        case .test: return "checkmark.seal.fill"
-        case .settings: return "gearshape.fill"
         }
     }
 
-    func menuIcon(tintColor: UIColor) -> UIImage? {
-        let configuration = UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold, scale: .medium)
-        return UIImage(systemName: systemImageName, withConfiguration: configuration)?
-            .withTintColor(tintColor, renderingMode: .alwaysOriginal)
+    var isPrimaryMenuRoute: Bool {
+        AppRoute.menuRoutes.contains(self)
     }
+}
 
+extension AppRoute {
+    static var allCases: [AppRoute] {
+        [.home, .music, .sets, .test, .record, .settings, .folder, .playlists, .flip]
+    }
+}
+
+extension AppRoute {
     static func route(for viewController: UIViewController?) -> AppRoute? {
         guard let viewController else { return nil }
         switch viewController {
         case is ModeViewController:
             return .home
+        case is MusicViewController, is LyricsViewController:
+            return .music
         case is FolderViewController:
             return .folder
         case is SetViewController:
@@ -54,6 +70,8 @@ enum AppRoute: CaseIterable {
             return .flip
         case is TestViewController, is QuizViewController:
             return .test
+        case is HistoryViewController, is ResultViewController:
+            return .record
         case is SettingViewController:
             return .settings
         default:
@@ -68,18 +86,22 @@ enum AppRouter {
         switch route {
         case .home:
             return storyboard.instantiateInitialViewController() ?? ModeViewController()
-        case .folder:
-            return storyboard.instantiateViewController(withIdentifier: "FolderViewController")
+        case .music:
+            return MusicViewController()
         case .sets:
             return SetViewController(folderID: nil, showsAll: true)
-        case .playlists:
-            return PlaylistListViewController()
-        case .flip:
-            return storyboard.instantiateViewController(withIdentifier: "FlipViewController")
         case .test:
             return TestViewController()
+        case .record:
+            return HistoryViewController()
         case .settings:
             return SettingViewController()
+        case .folder:
+            return storyboard.instantiateViewController(withIdentifier: "FolderViewController")
+        case .flip:
+            return storyboard.instantiateViewController(withIdentifier: "FlipViewController")
+        case .playlists:
+            return PlaylistListViewController()
         }
     }
 
@@ -110,8 +132,14 @@ enum AppRouter {
         } else {
             controller.loadViewIfNeeded()
             controller.view.frame = navigationController.view.bounds
-            controller.view.setNeedsLayout()
-            controller.view.layoutIfNeeded()
         }
+    }
+}
+
+extension AppRoute {
+    func menuIcon(tintColor: UIColor) -> UIImage? {
+        let configuration = UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold, scale: .medium)
+        return UIImage(systemName: systemImageName, withConfiguration: configuration)?
+            .withTintColor(tintColor, renderingMode: .alwaysOriginal)
     }
 }

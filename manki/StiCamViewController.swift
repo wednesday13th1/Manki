@@ -403,7 +403,7 @@ final class StiCamViewController: UIViewController, UIImagePickerControllerDeleg
             image.draw(in: rect)
             let fontSize = image.size.width * 0.35
             let attributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: fontSize),
+                .font: AppFont.jp(size: fontSize * 0.72, weight: .bold),
                 .foregroundColor: UIColor.white
             ]
             let emojiSize = (emoji as NSString).size(withAttributes: attributes)
@@ -431,7 +431,7 @@ final class StiCamViewController: UIViewController, UIImagePickerControllerDeleg
 
             let fontSize = size * 0.45
             let attributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: fontSize),
+                .font: AppFont.jp(size: fontSize * 0.72, weight: .bold),
                 .foregroundColor: UIColor.white
             ]
             let emojiSize = (emoji as NSString).size(withAttributes: attributes)

@@ -115,11 +115,11 @@ final class PlaylistEditorViewController: BaseViewController {
             scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
-            stackView.topAnchor.constraint(equalTo: scrollView.topAnchor, constant: AppSpacing.s(18)),
-            stackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: AppSpacing.s(20)),
-            stackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -AppSpacing.s(20)),
-            stackView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor, constant: -AppSpacing.s(24)),
-            stackView.widthAnchor.constraint(equalTo: view.widthAnchor, constant: -AppSpacing.s(40))
+            stackView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor, constant: AppSpacing.s(18)),
+            stackView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor, constant: AppSpacing.s(20)),
+            stackView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor, constant: -AppSpacing.s(20)),
+            stackView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -AppSpacing.s(24)),
+            stackView.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor, constant: -AppSpacing.s(40))
         ])
 
         stackView.addArrangedSubview(titleLabel)

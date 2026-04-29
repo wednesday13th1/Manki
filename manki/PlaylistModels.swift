@@ -1,6 +1,11 @@
 import Foundation
 import UIKit
 
+enum PlaylistSongSource: String, Codable {
+    case manual
+    case appleMusic = "apple_music"
+}
+
 enum EmotionTag: String, Codable, CaseIterable {
     case sad
     case happy
@@ -103,17 +108,91 @@ struct PlaylistCard: Codable, Identifiable {
 struct PlaylistSong: Codable, Identifiable {
     let id: String
     var title: String
-    var artist: String
+    var artistName: String
+    var appleMusicId: String?
+    var albumTitle: String?
+    var artworkUrl: String?
+    var previewUrl: String?
+    var duration: TimeInterval?
+    var source: PlaylistSongSource
     var cards: [PlaylistCard]
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case artistName
+        case artist
+        case appleMusicId
+        case albumTitle
+        case artworkUrl
+        case previewUrl
+        case duration
+        case source
+        case cards
+    }
 
     init(id: String = UUID().uuidString,
          title: String,
          artist: String,
+         appleMusicId: String? = nil,
+         albumTitle: String? = nil,
+         artworkUrl: String? = nil,
+         previewUrl: String? = nil,
+         duration: TimeInterval? = nil,
+         source: PlaylistSongSource = .manual,
          cards: [PlaylistCard] = []) {
         self.id = id
         self.title = title
-        self.artist = artist
+        self.artistName = artist
+        self.appleMusicId = appleMusicId
+        self.albumTitle = albumTitle
+        self.artworkUrl = artworkUrl
+        self.previewUrl = previewUrl
+        self.duration = duration
+        self.source = source
         self.cards = cards
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? container.decode(String.self, forKey: .id)) ?? UUID().uuidString
+        title = try container.decode(String.self, forKey: .title)
+        artistName = (try? container.decode(String.self, forKey: .artistName))
+            ?? (try? container.decode(String.self, forKey: .artist))
+            ?? "Unknown Artist"
+        appleMusicId = try container.decodeIfPresent(String.self, forKey: .appleMusicId)
+        albumTitle = try container.decodeIfPresent(String.self, forKey: .albumTitle)
+        artworkUrl = try container.decodeIfPresent(String.self, forKey: .artworkUrl)
+        previewUrl = try container.decodeIfPresent(String.self, forKey: .previewUrl)
+        duration = try container.decodeIfPresent(TimeInterval.self, forKey: .duration)
+        source = try container.decodeIfPresent(PlaylistSongSource.self, forKey: .source) ?? .manual
+        cards = try container.decodeIfPresent([PlaylistCard].self, forKey: .cards) ?? []
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(title, forKey: .title)
+        try container.encode(artistName, forKey: .artistName)
+        try container.encodeIfPresent(appleMusicId, forKey: .appleMusicId)
+        try container.encodeIfPresent(albumTitle, forKey: .albumTitle)
+        try container.encodeIfPresent(artworkUrl, forKey: .artworkUrl)
+        try container.encodeIfPresent(previewUrl, forKey: .previewUrl)
+        try container.encodeIfPresent(duration, forKey: .duration)
+        try container.encode(source, forKey: .source)
+        try container.encode(cards, forKey: .cards)
+    }
+
+    var artist: String {
+        artistName
+    }
+
+    var artworkURLValue: URL? {
+        artworkUrl.flatMap(URL.init(string:))
+    }
+
+    var previewURLValue: URL? {
+        previewUrl.flatMap(URL.init(string:))
     }
 }
 

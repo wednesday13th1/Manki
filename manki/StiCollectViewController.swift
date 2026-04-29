@@ -68,7 +68,7 @@ final class StiCollectViewController: UIViewController, UICollectionViewDataSour
         emptyLabel.translatesAutoresizingMaskIntoConstraints = false
         emptyLabel.text = "まだステッカーがありません"
         emptyLabel.textColor = .secondaryLabel
-        emptyLabel.font = .systemFont(ofSize: 16, weight: .semibold)
+        emptyLabel.font = AppFont.jp(size: 16, weight: .bold)
         emptyLabel.textAlignment = .center
         emptyLabel.isHidden = true
 

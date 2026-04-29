@@ -120,8 +120,17 @@ final class PlaylistSongViewController: BaseViewController {
         artistLabel.applyMankiTextStyle(.body, color: ThemeManager.palette().mutedText, numberOfLines: 0)
         metaLabel.applyMankiTextStyle(.caption, color: ThemeManager.palette().mutedText, numberOfLines: 0)
         titleLabel.text = song?.title
-        artistLabel.text = song?.artist
-        metaLabel.text = "\(cards.count)カード"
+        artistLabel.text = [
+            song?.artist,
+            song?.albumTitle
+        ].compactMap { value in
+            guard let value, !value.isEmpty else { return nil }
+            return value
+        }.joined(separator: " / ")
+        metaLabel.text = [
+            "\(cards.count)カード",
+            song?.source == .appleMusic ? "APPLE MUSIC" : "MANUAL"
+        ].joined(separator: " / ")
         updateHeaderLayout()
         emptyLabel.isHidden = !cards.isEmpty
     }

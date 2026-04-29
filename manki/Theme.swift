@@ -65,11 +65,7 @@ enum AppFont {
     }
 
     static func en(size: CGFloat, weight: UIFont.Weight = .regular) -> UIFont {
-        let scaledSize = size * ThemeManager.textScale
-        if let font = UIFont(name: "VT323-Regular", size: scaledSize) {
-            return font
-        }
-        return FontManager.font(.display, size: size, weight: weight)
+        FontManager.font(.body, size: size, weight: weight)
     }
 
     static func title(size: CGFloat) -> UIFont {

@@ -10,6 +10,7 @@ final class PlaylistDetailViewController: BaseViewController {
     private let themeBadge = EmotionBadgeLabel()
     private let reviewButton = UIButton(type: .system)
     private let quizButton = UIButton(type: .system)
+    private let appleMusicButton = UIButton(type: .system)
     private let filterScrollView = UIScrollView()
     private let filterStack = UIStackView()
     private let difficultyScrollView = UIScrollView()
@@ -60,6 +61,7 @@ final class PlaylistDetailViewController: BaseViewController {
         emptyLabel.textColor = palette.mutedText
         ThemeManager.stylePrimaryButton(reviewButton)
         ThemeManager.styleSecondaryButton(quizButton)
+        ThemeManager.styleSecondaryButton(appleMusicButton)
         themeBadge.apply(tag: playlist?.emotionTheme ?? .sad, palette: palette)
         updateFilterButtons()
     }
@@ -104,8 +106,10 @@ final class PlaylistDetailViewController: BaseViewController {
 
         reviewButton.setTitle("このPlaylistを復習", for: .normal)
         quizButton.setTitle("クイズ開始", for: .normal)
+        appleMusicButton.setTitle("Apple Musicから曲を追加", for: .normal)
         reviewButton.addTarget(self, action: #selector(openReviewMenu), for: .touchUpInside)
         quizButton.addTarget(self, action: #selector(openQuiz), for: .touchUpInside)
+        appleMusicButton.addTarget(self, action: #selector(addSongFromAppleMusic), for: .touchUpInside)
 
         filterScrollView.showsHorizontalScrollIndicator = false
         filterScrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -125,6 +129,7 @@ final class PlaylistDetailViewController: BaseViewController {
         headerStack.addArrangedSubview(descriptionLabel)
         headerStack.addArrangedSubview(metaLabel)
         headerStack.addArrangedSubview(buttonRow)
+        headerStack.addArrangedSubview(appleMusicButton)
         headerStack.addArrangedSubview(makeSectionLabel("感情タグで絞り込み"))
         headerStack.addArrangedSubview(filterScrollView)
         headerStack.addArrangedSubview(makeSectionLabel("難易度で絞り込み"))
@@ -275,14 +280,38 @@ final class PlaylistDetailViewController: BaseViewController {
 
     @objc private func addSong() {
         let controller = PlaylistEditorViewController(onSaveSong: { [weak self] song in
-            guard let self else { return }
-            var playlists = PlaylistStore.loadPlaylists()
-            guard let index = playlists.firstIndex(where: { $0.id == self.playlistID }) else { return }
-            playlists[index].songs.append(song)
-            PlaylistStore.savePlaylists(playlists)
-            self.reloadPlaylist()
+            self?.appendSong(song)
         })
         navigationController?.pushViewController(controller, animated: true)
+    }
+
+    @objc private func addSongFromAppleMusic() {
+        Task { [weak self] in
+            guard let self else { return }
+            let access = await AppleMusicCatalogService.requestAccess()
+            guard access.isAuthorized else {
+                self.presentUnifiedModal(
+                    title: "Apple Musicを利用できません",
+                    message: access.message,
+                    actions: [UnifiedModalAction(title: "OK")]
+                )
+                return
+            }
+
+            let controller = AppleMusicSearchViewController(
+                statusMessage: access.message,
+                existingAppleMusicIDs: self.currentAppleMusicIDs()
+            ) { [weak self] song in
+                self?.appendSong(song)
+            }
+            let navigationController = UINavigationController(rootViewController: controller)
+            navigationController.modalPresentationStyle = .pageSheet
+            if let sheet = navigationController.sheetPresentationController {
+                sheet.detents = [.medium(), .large()]
+                sheet.prefersGrabberVisible = true
+            }
+            self.present(navigationController, animated: true)
+        }
     }
 
     @objc private func openQuiz() {
@@ -319,6 +348,29 @@ final class PlaylistDetailViewController: BaseViewController {
                 UnifiedModalAction(title: "キャンセル", style: .cancel)
             ]
         )
+    }
+
+    private func currentAppleMusicIDs() -> Set<String> {
+        Set(playlist?.songs.compactMap(\.appleMusicId) ?? [])
+    }
+
+    private func appendSong(_ song: PlaylistSong) {
+        var playlists = PlaylistStore.loadPlaylists()
+        guard let index = playlists.firstIndex(where: { $0.id == playlistID }) else { return }
+
+        if let appleMusicId = song.appleMusicId,
+           playlists[index].songs.contains(where: { $0.appleMusicId == appleMusicId }) {
+            presentUnifiedModal(
+                title: "追加済み",
+                message: "この Apple Music の曲はすでに Playlist に入っています。",
+                actions: [UnifiedModalAction(title: "OK")]
+            )
+            return
+        }
+
+        playlists[index].songs.append(song)
+        PlaylistStore.savePlaylists(playlists)
+        reloadPlaylist()
     }
 }
 

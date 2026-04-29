@@ -112,7 +112,7 @@ final class MenuNavigationController: UINavigationController, UIGestureRecognize
     private func buildMenuItems() -> [SideMenuItem] {
         let currentRoute = AppRoute.route(for: visibleViewController)
 
-        return AppRoute.allCases.map { route in
+        return AppRoute.menuRoutes.map { route in
             return SideMenuItem(
                 route: route,
                 title: route.title,

@@ -841,10 +841,10 @@ final class SetViewController: UIViewController, UITableViewDataSource, UITableV
 
         do {
             try renderer.writePDF(to: fileURL) { context in
-                let titleFont = UIFont.boldSystemFont(ofSize: 18)
-                let metaFont = UIFont.systemFont(ofSize: 11)
-                let headerFont = UIFont.boldSystemFont(ofSize: 12)
-                let bodyFont = UIFont.systemFont(ofSize: 11)
+                let titleFont = AppFont.jp(size: 18, weight: .bold)
+                let metaFont = AppFont.jp(size: 11)
+                let headerFont = AppFont.jp(size: 12, weight: .bold)
+                let bodyFont = AppFont.jp(size: 11)
                 let textColor = UIColor.black
 
                 let tableTopStart: CGFloat = margin + 72

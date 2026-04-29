@@ -1,5 +1,27 @@
 import UIKit
 
+private enum PlaylistArtworkLoader {
+    static let cache = NSCache<NSString, UIImage>()
+
+    static func load(from url: URL, into imageView: UIImageView) -> URLSessionDataTask? {
+        let cacheKey = url.absoluteString as NSString
+        if let image = cache.object(forKey: cacheKey) {
+            imageView.image = image
+            return nil
+        }
+
+        let task = URLSession.shared.dataTask(with: url) { data, _, _ in
+            guard let data, let image = UIImage(data: data) else { return }
+            cache.setObject(image, forKey: cacheKey)
+            DispatchQueue.main.async {
+                imageView.image = image
+            }
+        }
+        task.resume()
+        return task
+    }
+}
+
 final class EmotionBadgeLabel: UILabel {
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -139,6 +161,140 @@ final class RetroSummaryCell: UITableViewCell {
         subtitleLabel.text = subtitle
         metaLabel.text = meta
         badgeLabel.apply(tag: emotionTag, palette: palette)
+    }
+}
+
+final class AppleMusicSearchResultCell: UITableViewCell {
+    static let reuseIdentifier = "AppleMusicSearchResultCell"
+
+    private let cardView = UIView()
+    private let artworkView = UIImageView()
+    private let titleLabel = UILabel()
+    private let artistLabel = UILabel()
+    private let albumLabel = UILabel()
+    private let metaLabel = UILabel()
+    private let addButton = UIButton(type: .system)
+    private var artworkTask: URLSessionDataTask?
+    private var currentArtworkURL: URL?
+
+    var onAddTapped: (() -> Void)?
+
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        configureUI()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        configureUI()
+    }
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        artworkTask?.cancel()
+        artworkTask = nil
+        currentArtworkURL = nil
+        artworkView.image = nil
+        onAddTapped = nil
+    }
+
+    private func configureUI() {
+        selectionStyle = .none
+        backgroundColor = .clear
+        contentView.backgroundColor = .clear
+
+        [cardView, artworkView, titleLabel, artistLabel, albumLabel, metaLabel, addButton].forEach {
+            $0.translatesAutoresizingMaskIntoConstraints = false
+        }
+
+        artworkView.contentMode = .scaleAspectFill
+        artworkView.clipsToBounds = true
+        artworkView.layer.cornerRadius = 14
+        artworkView.layer.borderWidth = 1.5
+
+        [titleLabel, artistLabel, albumLabel, metaLabel].forEach {
+            $0.numberOfLines = 0
+        }
+
+        addButton.setTitle("追加", for: .normal)
+        addButton.addTarget(self, action: #selector(addTapped), for: .touchUpInside)
+
+        contentView.addSubview(cardView)
+        [artworkView, titleLabel, artistLabel, albumLabel, metaLabel, addButton].forEach {
+            cardView.addSubview($0)
+        }
+
+        NSLayoutConstraint.activate([
+            cardView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: AppSpacing.s(12)),
+            cardView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -AppSpacing.s(12)),
+            cardView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: AppSpacing.s(8)),
+            cardView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -AppSpacing.s(8)),
+
+            artworkView.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: AppSpacing.s(14)),
+            artworkView.topAnchor.constraint(equalTo: cardView.topAnchor, constant: AppSpacing.s(14)),
+            artworkView.widthAnchor.constraint(equalToConstant: 68),
+            artworkView.heightAnchor.constraint(equalToConstant: 68),
+
+            addButton.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -AppSpacing.s(14)),
+            addButton.centerYAnchor.constraint(equalTo: cardView.centerYAnchor),
+            addButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 88),
+
+            titleLabel.topAnchor.constraint(equalTo: cardView.topAnchor, constant: AppSpacing.s(14)),
+            titleLabel.leadingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: AppSpacing.s(12)),
+            titleLabel.trailingAnchor.constraint(equalTo: addButton.leadingAnchor, constant: -AppSpacing.s(10)),
+
+            artistLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: AppSpacing.s(6)),
+            artistLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+            artistLabel.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
+
+            albumLabel.topAnchor.constraint(equalTo: artistLabel.bottomAnchor, constant: AppSpacing.s(4)),
+            albumLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+            albumLabel.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
+
+            metaLabel.topAnchor.constraint(equalTo: albumLabel.bottomAnchor, constant: AppSpacing.s(6)),
+            metaLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+            metaLabel.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
+            metaLabel.bottomAnchor.constraint(lessThanOrEqualTo: cardView.bottomAnchor, constant: -AppSpacing.s(14)),
+
+            cardView.bottomAnchor.constraint(greaterThanOrEqualTo: artworkView.bottomAnchor, constant: AppSpacing.s(14))
+        ])
+    }
+
+    func configure(result: AppleMusicSongResult, alreadyAdded: Bool) {
+        let palette = ThemeManager.palette()
+        ThemeManager.styleCard(cardView, fillColor: palette.surface.withAlphaComponent(0.95))
+        artworkView.layer.borderColor = palette.border.cgColor
+        artworkView.backgroundColor = palette.surfaceAlt.withAlphaComponent(0.9)
+        titleLabel.applyMankiTextStyle(.sectionTitle, color: palette.text, numberOfLines: 2)
+        artistLabel.applyMankiTextStyle(.body, color: palette.mutedText, numberOfLines: 1)
+        albumLabel.applyMankiTextStyle(.caption, color: palette.mutedText, numberOfLines: 2)
+        metaLabel.applyMankiTextStyle(.caption, color: palette.mutedText, numberOfLines: 1)
+        ThemeManager.stylePrimaryButton(addButton)
+        addButton.isEnabled = !alreadyAdded
+        addButton.alpha = alreadyAdded ? 0.7 : 1.0
+        addButton.setTitle(alreadyAdded ? "追加済み" : "追加", for: .normal)
+
+        titleLabel.text = result.title
+        artistLabel.text = result.artistName
+        albumLabel.text = result.albumTitle ?? "アルバム情報なし"
+        metaLabel.text = [
+            result.formattedDuration,
+            result.previewURL == nil ? nil : "preview OK",
+            "APPLE MUSIC"
+        ].compactMap { $0 }.joined(separator: " / ")
+
+        artworkTask?.cancel()
+        artworkTask = nil
+        currentArtworkURL = result.artworkURL
+        artworkView.image = nil
+
+        if let artworkURL = result.artworkURL {
+            artworkTask = PlaylistArtworkLoader.load(from: artworkURL, into: artworkView)
+        }
+    }
+
+    @objc private func addTapped() {
+        onAddTapped?()
     }
 }
 

@@ -154,7 +154,7 @@ final class ModeViewController: UIViewController {
 
     @objc private func openSideMenu() {
         guard sideMenu == nil else { return }
-        let items = AppRoute.allCases.map { route in
+        let items = AppRoute.menuRoutes.map { route in
             return SideMenuItem(
                 route: route,
                 title: route.title,

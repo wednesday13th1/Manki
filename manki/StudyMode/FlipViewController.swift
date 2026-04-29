@@ -230,7 +230,7 @@ class FlipViewController: UIViewController, UIPickerViewDelegate, UIPickerViewDa
         fallbackPlaceholderView.clipsToBounds = true
         fallbackPlaceholderView.isHidden = true
         emojiLabel.translatesAutoresizingMaskIntoConstraints = false
-        emojiLabel.font = .systemFont(ofSize: 64)
+        emojiLabel.font = AppFont.jp(size: 48, weight: .bold)
         emojiLabel.textAlignment = .center
 
         errorLabel.translatesAutoresizingMaskIntoConstraints = false

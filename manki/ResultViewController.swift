@@ -7,7 +7,7 @@
 
 import UIKit
 
-final class ResultViewController: UIViewController {
+final class ResultViewController: BaseViewController {
 
     private let resultsFileName = "results.json"
     private let textView = UITextView()
@@ -23,7 +23,6 @@ final class ResultViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "結果"
-        view.backgroundColor = .systemBackground
 
         configureUI()
     }
@@ -40,7 +39,7 @@ final class ResultViewController: UIViewController {
         view.addSubview(filterControl)
 
         textView.isEditable = false
-        textView.font = .systemFont(ofSize: 14)
+        textView.font = AppFont.jp(size: 14)
         textView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(textView)
 
@@ -133,9 +132,10 @@ final class ResultViewController: UIViewController {
     }
 
     private func formatResultsAttributed(_ sessions: [SessionResult]) -> NSAttributedString {
-        let baseFont = UIFont.systemFont(ofSize: 14)
-        let boldFont = UIFont.systemFont(ofSize: 14, weight: .semibold)
-        let baseColor = UIColor.label
+        let palette = ThemeManager.palette()
+        let baseFont = AppFont.jp(size: 14)
+        let boldFont = AppFont.jp(size: 14, weight: .bold)
+        let baseColor = palette.text
         let redColor = UIColor.systemRed
 
         let result = NSMutableAttributedString()
@@ -180,6 +180,26 @@ final class ResultViewController: UIViewController {
         }
 
         return result
+    }
+
+    override func applyBaseTheme() {
+        super.applyBaseTheme()
+        let palette = ThemeManager.palette()
+        textView.backgroundColor = palette.surface.withAlphaComponent(0.94)
+        textView.textColor = palette.text
+        textView.layer.cornerRadius = 18
+        textView.layer.borderWidth = 2
+        textView.layer.borderColor = palette.border.cgColor
+        filterControl.backgroundColor = palette.surface.withAlphaComponent(0.96)
+        filterControl.selectedSegmentTintColor = palette.accent
+        filterControl.setTitleTextAttributes([
+            .font: AppFont.jp(size: 13, weight: .bold),
+            .foregroundColor: palette.text
+        ], for: .normal)
+        filterControl.setTitleTextAttributes([
+            .font: AppFont.jp(size: 13, weight: .bold),
+            .foregroundColor: palette.text
+        ], for: .selected)
     }
 }
 
