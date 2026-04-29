@@ -199,10 +199,54 @@ final class MusicViewController: BaseViewController {
     }
 
     @objc private func showAIRecommendations() {
-        sourceMode = .ai
-        appleMusicSongsByID = [:]
-        songs = MusicMockData.aiRecommendedSongs
-        refreshContent(note: "モックのAIおすすめプレイリストです。")
+        Task { [weak self] in
+            guard let self else { return }
+            sourceMode = .ai
+            appleMusicSongsByID = [:]
+
+            guard let recommended = RecommendedSongProvider.shared.todayRecommendation() else {
+                songs = []
+                refreshContent(note: "今日のおすすめ曲は準備中です。")
+                return
+            }
+
+            guard !recommended.appleMusicID.isEmpty,
+                  LyricsRepository.shared.hasLyrics(for: recommended.lyricsID) else {
+                songs = [recommended.mankiSong]
+                refreshContent(note: "今日のおすすめ曲は準備中です。")
+                return
+            }
+
+            if #available(iOS 15.0, *) {
+                let appleSong = await service.fetchAppleMusicSongByID(recommended.appleMusicID)
+                if let appleSong {
+                    let mergedSong = MankiSong(
+                        id: recommended.mankiSong.id,
+                        title: appleSong.title,
+                        artist: appleSong.artistName,
+                        appleMusicID: recommended.appleMusicID,
+                        albumTitle: appleSong.albumTitle ?? recommended.mankiSong.albumTitle,
+                        artworkURL: appleSong.artwork?.url(width: 300, height: 300) ?? recommended.mankiSong.artworkURL,
+                        lyricsID: recommended.lyricsID,
+                        mood: recommended.mankiSong.mood,
+                        level: recommended.mankiSong.level,
+                        keywords: recommended.mankiSong.keywords,
+                        lyricsLines: recommended.mankiSong.lyricsLines,
+                        previewURL: appleSong.previewAssets?.first?.url ?? recommended.mankiSong.previewURL,
+                        timedLyrics: recommended.mankiSong.timedLyrics
+                    )
+                    songs = [mergedSong]
+                    appleMusicSongsByID = [mergedSong.id: appleSong]
+                    refreshContent(note: recommended.reason)
+                } else {
+                    songs = [recommended.mankiSong]
+                    refreshContent(note: "今日のおすすめ曲は準備中です。")
+                }
+            } else {
+                songs = [recommended.mankiSong]
+                refreshContent(note: "今日のおすすめ曲は準備中です。")
+            }
+        }
     }
 
     @objc private func connectAppleMusicTapped() {

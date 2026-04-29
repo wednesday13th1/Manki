@@ -135,19 +135,26 @@ final class LyricsViewController: BaseViewController {
     private func applyContent() {
         titleLabel.text = song.title
         artistLabel.text = song.artist
-        noteLabel.text = LyricsRepository.lyricsNotice(for: song)
+        noteLabel.text = LyricsRepository.shared.lyricsNotice(for: song)
         keywordsLabel.text = "Keywords: " + song.keywords.map(\.word).joined(separator: " / ")
         timeLabel.text = formattedTime(0)
         textView.attributedText = makeLyricsAttributedText(currentTime: 0)
     }
 
     private var timedLyrics: [TimedLyricLine] {
-        if song.timedLyrics.isEmpty {
+        let repositoryLyrics = LyricsRepository.shared.lyrics(for: song)
+        if !repositoryLyrics.isEmpty {
+            return repositoryLyrics
+        }
+        if !song.timedLyrics.isEmpty {
+            return song.timedLyrics
+        }
+        if !song.lyricsLines.isEmpty {
             return song.lyricsLines.enumerated().map { index, text in
                 TimedLyricLine(time: TimeInterval(index) * 3.5, text: text, japaneseTranslation: "ダミーの日本語訳です。")
             }
         }
-        return song.timedLyrics
+        return []
     }
 
     private func makeLyricsAttributedText(currentTime: TimeInterval) -> NSAttributedString {
@@ -221,6 +228,20 @@ final class LyricsViewController: BaseViewController {
 
     private func startPlayback() {
         print("Play tapped for:", song.id, song.title, song.artist, song.previewURL?.absoluteString ?? "no previewURL")
+        print("Recommended playback check")
+        print("Manki song id:", song.id)
+        print("Apple Music ID:", song.appleMusicID ?? "nil")
+        print("Lyrics ID:", song.lyricsID)
+        print("Apple Song ID:", appleMusicSong?.id.rawValue ?? "nil")
+        print("Title:", song.title)
+
+        if let appleSong = appleMusicSong,
+           let appleID = song.appleMusicID,
+           appleSong.id.rawValue != appleID {
+            showError("曲と歌詞のIDが一致しません")
+            return
+        }
+
         isPlaying = true
         playPauseButton.setTitle("一時停止", for: .normal)
         playbackTimer?.invalidate()
@@ -232,33 +253,42 @@ final class LyricsViewController: BaseViewController {
         Task { [weak self] in
             guard let self else { return }
             if #available(iOS 15.0, *), let appleSong = self.appleMusicSong {
+                guard let appleID = self.song.appleMusicID, appleSong.id.rawValue == appleID else {
+                    await MainActor.run {
+                        self.pausePlayback()
+                        self.showError("曲と歌詞のIDが一致しません")
+                    }
+                    return
+                }
                 let success = await MusicService.shared.playAppleMusicSong(appleSong, expectedSongID: self.song.id)
                 if !success {
                     await MainActor.run {
                         self.pausePlayback()
-                        self.presentUnifiedModal(
-                            title: "再生エラー",
-                            message: "この曲を再生できませんでした。Apple Musicの登録状況を確認してください。",
-                            actions: [UnifiedModalAction(title: "OK")]
-                        )
+                        self.showError("この曲を再生できませんでした。Apple Musicの登録状況を確認してください。")
                     }
                 }
             } else if #available(iOS 15.0, *), let id = self.song.appleMusicID {
+                guard !id.isEmpty else {
+                    await MainActor.run {
+                        self.pausePlayback()
+                        self.showError("音源なし")
+                    }
+                    return
+                }
                 let success = await MusicService.shared.playAppleMusicSongByID(id, expectedSongID: self.song.id)
                 if !success {
                     await MainActor.run {
                         self.pausePlayback()
-                        self.presentUnifiedModal(
-                            title: "再生エラー",
-                            message: "この曲を再生できませんでした。Apple Musicの登録状況を確認してください。",
-                            actions: [UnifiedModalAction(title: "OK")]
-                        )
+                        self.showError("この曲を再生できませんでした。Apple Musicの登録状況を確認してください。")
                     }
                 }
             } else if let previewURL = self.song.previewURL {
                 MusicService.shared.playPreview(url: previewURL, songID: self.song.id)
             } else {
-                MusicService.shared.playSong(self.song)
+                await MainActor.run {
+                    self.pausePlayback()
+                    self.showError("音源なし")
+                }
             }
         }
     }
@@ -340,6 +370,14 @@ final class LyricsViewController: BaseViewController {
                 },
                 UnifiedModalAction(title: "閉じる", style: .cancel)
             ]
+        )
+    }
+
+    private func showError(_ message: String) {
+        presentUnifiedModal(
+            title: "再生エラー",
+            message: message,
+            actions: [UnifiedModalAction(title: "OK")]
         )
     }
 }

@@ -169,6 +169,22 @@ final class MusicService {
     }
 
     @available(iOS 15.0, *)
+    func fetchAppleMusicSongByID(_ id: String) async -> Song? {
+        do {
+            let musicID = MusicItemID(rawValue: id)
+            let request = MusicCatalogResourceRequest<Song>(
+                matching: \.id,
+                equalTo: musicID
+            )
+            let response = try await request.response()
+            return response.items.first
+        } catch {
+            print("Failed to fetch Apple Music song by ID:", id, error)
+            return nil
+        }
+    }
+
+    @available(iOS 15.0, *)
     func fetchDetailedUserPlaylists() async -> [AppleMusicPlaylistSnapshot] {
         let playlists = await fetchUserPlaylists()
         var snapshots: [AppleMusicPlaylistSnapshot] = []
@@ -235,19 +251,11 @@ final class MusicService {
     @available(iOS 15.0, *)
     @discardableResult
     func playAppleMusicSongByID(_ songID: String, expectedSongID: String) async -> Bool {
-        do {
-            let musicID = MusicItemID(rawValue: songID)
-            let request = MusicCatalogResourceRequest<Song>(matching: \.id, equalTo: musicID)
-            let response = try await request.response()
-            guard let song = response.items.first else {
-                print("No Apple Music song found for id:", songID)
-                return false
-            }
-            return await playAppleMusicSong(song, expectedSongID: expectedSongID)
-        } catch {
-            print("Failed to play song by ID:", error)
+        guard let song = await fetchAppleMusicSongByID(songID) else {
+            print("No Apple Music song found for id:", songID)
             return false
         }
+        return await playAppleMusicSong(song, expectedSongID: expectedSongID)
     }
 
     @available(iOS 15.0, *)
