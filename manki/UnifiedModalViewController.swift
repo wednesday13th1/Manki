@@ -185,7 +185,12 @@ final class UnifiedModalViewController: UIViewController {
         button.tag = index
         button.setTitle(action.title, for: .normal)
         button.titleLabel?.font = AppFont.jp(size: 16, weight: .bold)
-        button.contentEdgeInsets = UIEdgeInsets(top: 6, left: 10, bottom: 6, right: 10)
+        if var configuration = button.configuration {
+            configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 10, bottom: 6, trailing: 10)
+            button.configuration = configuration
+        } else {
+            button.contentEdgeInsets = UIEdgeInsets(top: 6, left: 10, bottom: 6, right: 10)
+        }
         button.layer.borderWidth = 2
         button.layer.cornerRadius = 0
         button.layer.masksToBounds = true

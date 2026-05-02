@@ -58,7 +58,7 @@ extension AppRoute {
         switch viewController {
         case is ModeViewController:
             return .home
-        case is MusicViewController, is LyricsViewController:
+        case is MusicViewController, is MusicKitPlayerViewController, is LyricsViewController:
             return .music
         case is FolderViewController:
             return .folder
@@ -87,7 +87,7 @@ enum AppRouter {
         case .home:
             return storyboard.instantiateInitialViewController() ?? ModeViewController()
         case .music:
-            return MusicViewController()
+            return MusicKitPlayerViewController()
         case .sets:
             return SetViewController(folderID: nil, showsAll: true)
         case .test:

@@ -433,7 +433,12 @@ final class TestViewController: UIViewController, UITextFieldDelegate, UIPickerV
             button.setTitle(text, for: .normal)
             button.titleLabel?.font = AppFont.jp(size: 16, weight: .regular)
             button.contentHorizontalAlignment = .left
-            button.contentEdgeInsets = UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
+            if var configuration = button.configuration {
+                configuration.contentInsets = NSDirectionalEdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12)
+                button.configuration = configuration
+            } else {
+                button.contentEdgeInsets = UIEdgeInsets(top: 10, left: 12, bottom: 10, right: 12)
+            }
             button.layer.borderWidth = 1
             button.layer.cornerRadius = 8
             button.layer.borderColor = UIColor.systemGray4.cgColor

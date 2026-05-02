@@ -206,7 +206,12 @@ final class FolderViewController: UIViewController, UITableViewDataSource, UITab
 
         [retroClickWheelBackButton, retroClickWheelAddButton, retroClickWheelSortButton].forEach { button in
             button.titleLabel?.font = AppFont.jp(size: 11, weight: .bold)
-            button.contentEdgeInsets = UIEdgeInsets(top: 6, left: 8, bottom: 6, right: 8)
+            if var configuration = button.configuration {
+                configuration.contentInsets = NSDirectionalEdgeInsets(top: 6, leading: 8, bottom: 6, trailing: 8)
+                button.configuration = configuration
+            } else {
+                button.contentEdgeInsets = UIEdgeInsets(top: 6, left: 8, bottom: 6, right: 8)
+            }
         }
         retroClickWheelBackButton.setTitle("戻る", for: .normal)
         retroClickWheelAddButton.setTitle("追加", for: .normal)

@@ -156,12 +156,23 @@ extension UIButton {
         titleLabel?.adjustsFontForContentSizeCategory = true
         titleLabel?.numberOfLines = 2
         titleLabel?.textAlignment = .center
-        contentEdgeInsets = UIEdgeInsets(
+        let insets = NSDirectionalEdgeInsets(
             top: AppSpacing.s(14),
-            left: AppSpacing.s(16),
+            leading: AppSpacing.s(16),
             bottom: AppSpacing.s(14),
-            right: AppSpacing.s(16)
+            trailing: AppSpacing.s(16)
         )
+        if var configuration {
+            configuration.contentInsets = insets
+            self.configuration = configuration
+        } else {
+            contentEdgeInsets = UIEdgeInsets(
+                top: insets.top,
+                left: insets.leading,
+                bottom: insets.bottom,
+                right: insets.trailing
+            )
+        }
         let hasHeightConstraint = constraints.contains { constraint in
             constraint.firstAttribute == .height && constraint.relation == .greaterThanOrEqual
         }
