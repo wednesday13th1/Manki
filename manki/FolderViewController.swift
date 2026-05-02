@@ -8,6 +8,7 @@
 import UIKit
 
 final class FolderViewController: UIViewController, UITableViewDataSource, UITableViewDelegate, UIGestureRecognizerDelegate {
+    private let horizontalMargin = AppSpacing.s(16)
 
     private var folders: [SavedFolder] = []
     private var filteredFolders: [SavedFolder] = []
@@ -235,8 +236,8 @@ final class FolderViewController: UIViewController, UITableViewDataSource, UITab
 
         NSLayoutConstraint.activate([
             retroShellView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: AppSpacing.s(36)),
-            retroShellView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: AppSpacing.s(28)),
-            retroShellView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -AppSpacing.s(28)),
+            retroShellView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: horizontalMargin),
+            retroShellView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -horizontalMargin),
             retroShellView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -AppSpacing.s(16)),
 
             retroSpeakerView.topAnchor.constraint(equalTo: retroShellView.topAnchor, constant: AppSpacing.s(12)),
@@ -348,6 +349,24 @@ final class FolderViewController: UIViewController, UITableViewDataSource, UITab
         unclassifiedSetCount = unclassified
     }
 
+    private func displayName(for folder: SavedFolder) -> String {
+        sanitizeDisplayName(folder.name)
+    }
+
+    private func sanitizeDisplayName(_ rawValue: String?) -> String {
+        guard let rawValue else { return "名称未設定" }
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "名称未設定" }
+        let lowercased = trimmed.lowercased()
+        if lowercased == "null" || lowercased == "nil" {
+            return "名称未設定"
+        }
+        if trimmed.hasPrefix("Optional(") {
+            return "名称未設定"
+        }
+        return trimmed
+    }
+
     func numberOfSections(in tableView: UITableView) -> Int {
         return 2
     }
@@ -389,7 +408,7 @@ final class FolderViewController: UIViewController, UITableViewDataSource, UITab
         } else {
             let folder = displayedFolders()[indexPath.row]
             let count = setCountByFolderID[folder.id, default: 0]
-            cell.textLabel?.text = folder.name
+            cell.textLabel?.text = displayName(for: folder)
             cell.detailTextLabel?.text = "セット \(count) 個"
         }
         cell.accessoryType = .disclosureIndicator
@@ -414,7 +433,7 @@ final class FolderViewController: UIViewController, UITableViewDataSource, UITab
         }
         let folder = displayedFolders()[indexPath.row]
         let controller = SetViewController(folderID: folder.id)
-        controller.title = folder.name
+        controller.title = displayName(for: folder)
         pushPreparedSetViewController(controller)
     }
 
@@ -549,7 +568,7 @@ final class FolderViewController: UIViewController, UITableViewDataSource, UITab
         let folder = displayedFolders()[indexPath.row]
         let nameField = UITextField()
         nameField.borderStyle = .roundedRect
-        nameField.text = folder.name
+        nameField.text = displayName(for: folder) == "名称未設定" ? "" : displayName(for: folder)
         nameField.placeholder = "フォルダー名"
         presentUnifiedModal(
             title: "名前変更",
@@ -616,12 +635,12 @@ final class FolderViewController: UIViewController, UITableViewDataSource, UITab
         if searchText.isEmpty {
             filteredFolders = []
         } else {
-            filteredFolders = folders.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+            filteredFolders = folders.filter { displayName(for: $0).localizedCaseInsensitiveContains(searchText) }
         }
         if let sortAsc = sortByNameAsc {
             let target = searchText.isEmpty ? folders : filteredFolders
             let sorted = target.sorted {
-                $0.name.localizedCaseInsensitiveCompare($1.name) == (sortAsc ? .orderedAscending : .orderedDescending)
+                displayName(for: $0).localizedCaseInsensitiveCompare(displayName(for: $1)) == (sortAsc ? .orderedAscending : .orderedDescending)
             }
             if searchText.isEmpty {
                 folders = sorted

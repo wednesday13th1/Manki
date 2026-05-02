@@ -59,19 +59,33 @@ final class MusicKitPlayerViewController: BaseViewController {
     private let lyricsNoteLabel = UILabel()
     private let targetLevelLabel = UILabel()
     private let keywordTitleLabel = UILabel()
+    private let keywordStatusLabel = UILabel()
     private let keywordScrollView = UIScrollView()
     private let keywordStackView = UIStackView()
+    private let addKeywordsButton = UIButton(type: .system)
     private let lyricsTextView = UITextView()
     private var keywordScrollHeightConstraint: NSLayoutConstraint?
     private var lyricsHeightConstraint: NSLayoutConstraint?
 
     private var recommendationArtworkTask: Task<Void, Never>?
     private var nowPlayingArtworkTask: Task<Void, Never>?
+    private var keywordExtractionTask: Task<Void, Never>?
     private var goalLevelObserver: NSObjectProtocol?
-    private var extractedKeywords: [LyricKeyword] = []
-    private var selectedKeyword: LyricKeyword?
+    private let keywordExtractor: KeywordExtracting = LocalKeywordExtractor()
+    private var extractedKeywords: [ExtractedKeyword] = []
+    private var selectedKeywordIDs = Set<UUID>()
+    private var focusedKeyword: ExtractedKeyword?
     private var keywordButtons: [FilterChipButton] = []
     private var lastKeywordSignature = ""
+    private var lastRenderedPlaylistTrackIDs: [MusicItemID] = []
+    private var lastAppliedGoalText = ""
+    private var recommendationArtworkURL: URL?
+    private var nowPlayingArtworkURL: URL?
+    private var lastRenderedStatusMessage = ""
+    private var lastRenderedPlaylistTitle = ""
+    private var lastRenderedLyricsNotice = ""
+    private var keywordStatusMessage = ""
+    private var needsDeferredRender = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -86,17 +100,21 @@ final class MusicKitPlayerViewController: BaseViewController {
         super.viewWillDisappear(animated)
         recommendationArtworkTask?.cancel()
         nowPlayingArtworkTask?.cancel()
+        keywordExtractionTask?.cancel()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        if needsDeferredRender {
+            needsDeferredRender = false
+        }
+        render()
     }
 
     deinit {
         if let goalLevelObserver {
             NotificationCenter.default.removeObserver(goalLevelObserver)
         }
-    }
-
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        render()
     }
 
     override func viewDidLayoutSubviews() {
@@ -108,7 +126,7 @@ final class MusicKitPlayerViewController: BaseViewController {
         super.applyBaseTheme()
         let palette = ThemeManager.palette()
 
-        [statusLabel, recommendationTitleLabel, recommendationArtistLabel, playlistTitleLabel, playlistNameLabel, shuffleLabel, nowPlayingTitleLabel, nowPlayingArtistLabel, lyricsTitleLabel, lyricsNoteLabel, targetLevelLabel, keywordTitleLabel].forEach {
+        [statusLabel, recommendationTitleLabel, recommendationArtistLabel, playlistTitleLabel, playlistNameLabel, shuffleLabel, nowPlayingTitleLabel, nowPlayingArtistLabel, lyricsTitleLabel, lyricsNoteLabel, targetLevelLabel, keywordTitleLabel, keywordStatusLabel].forEach {
             $0.textColor = palette.text
         }
         recommendationArtistLabel.textColor = palette.mutedText
@@ -116,6 +134,7 @@ final class MusicKitPlayerViewController: BaseViewController {
         nowPlayingArtistLabel.textColor = palette.mutedText
         lyricsNoteLabel.textColor = palette.mutedText
         targetLevelLabel.textColor = palette.accentStrong
+        keywordStatusLabel.textColor = palette.mutedText
         statusLabel.textColor = palette.mutedText
 
         [recommendationCard, playlistCard, nowPlayingCard, lyricsCard].forEach {
@@ -129,6 +148,7 @@ final class MusicKitPlayerViewController: BaseViewController {
         ThemeManager.styleSecondaryButton(previousButton)
         ThemeManager.stylePrimaryButton(playPauseButton)
         ThemeManager.styleSecondaryButton(nextButton)
+        ThemeManager.stylePrimaryButton(addKeywordsButton)
 
         lyricsTextView.backgroundColor = palette.surface.withAlphaComponent(0.92)
         lyricsTextView.textColor = palette.text
@@ -139,14 +159,11 @@ final class MusicKitPlayerViewController: BaseViewController {
 
         tracksTableView.backgroundColor = .clear
         tracksTableView.separatorStyle = .none
-        tracksTableView.reloadData()
-        keywordButtons.forEach { $0.apply(title: $0.title(for: .normal) ?? "", selected: false) }
-        renderKeywords()
-        renderLyrics()
+        view.setNeedsLayout()
     }
 
     private func configureUI() {
-        [scrollView, contentStack, statusLabel, authorizeButton, recommendationCard, recommendationStack, recommendationMediaStack, recommendationTextStack, recommendationArtworkView, recommendationTitleLabel, recommendationArtistLabel, recommendationPlayButton, playlistCard, playlistStack, playlistHeaderStack, playlistControlsStack, shuffleInfoStack, playlistTitleLabel, playlistHeaderSpacer, playlistSelectButton, playlistNameLabel, shuffleLabel, playlistControlsSpacer, playAllButton, tracksTableView, nowPlayingCard, nowPlayingStack, nowPlayingMediaStack, nowPlayingTextStack, nowPlayingArtworkView, nowPlayingTitleLabel, nowPlayingArtistLabel, playbackButtonsStack, previousButton, playPauseButton, nextButton, lyricsCard, lyricsStack, lyricsTitleLabel, lyricsNoteLabel, targetLevelLabel, keywordTitleLabel, keywordScrollView, keywordStackView, lyricsTextView].forEach {
+        [scrollView, contentStack, statusLabel, authorizeButton, recommendationCard, recommendationStack, recommendationMediaStack, recommendationTextStack, recommendationArtworkView, recommendationTitleLabel, recommendationArtistLabel, recommendationPlayButton, playlistCard, playlistStack, playlistHeaderStack, playlistControlsStack, shuffleInfoStack, playlistTitleLabel, playlistHeaderSpacer, playlistSelectButton, playlistNameLabel, shuffleLabel, playlistControlsSpacer, playAllButton, tracksTableView, nowPlayingCard, nowPlayingStack, nowPlayingMediaStack, nowPlayingTextStack, nowPlayingArtworkView, nowPlayingTitleLabel, nowPlayingArtistLabel, playbackButtonsStack, previousButton, playPauseButton, nextButton, lyricsCard, lyricsStack, lyricsTitleLabel, lyricsNoteLabel, targetLevelLabel, keywordTitleLabel, keywordStatusLabel, keywordScrollView, keywordStackView, addKeywordsButton, lyricsTextView].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
         }
 
@@ -154,8 +171,9 @@ final class MusicKitPlayerViewController: BaseViewController {
         contentStack.spacing = AppSpacing.s(16)
 
         statusLabel.applyMankiTextStyle(.caption, color: ThemeManager.palette().mutedText, numberOfLines: 0)
-        authorizeButton.setTitle("Authorize Apple Music", for: .normal)
+        authorizeButton.setTitle("Apple Musicを許可", for: .normal)
         authorizeButton.addTarget(self, action: #selector(authorizeTapped), for: .touchUpInside)
+        authorizeButton.adjustsImageWhenHighlighted = false
 
         recommendationArtworkView.contentMode = .scaleAspectFill
         recommendationArtworkView.clipsToBounds = true
@@ -177,8 +195,9 @@ final class MusicKitPlayerViewController: BaseViewController {
 
         recommendationTitleLabel.applyMankiTextStyle(.sectionTitle, color: ThemeManager.palette().text, numberOfLines: 2)
         recommendationArtistLabel.applyMankiTextStyle(.body, color: ThemeManager.palette().mutedText, numberOfLines: 2)
-        recommendationPlayButton.setTitle("Play Today", for: .normal)
+        recommendationPlayButton.setTitle("おすすめ再生", for: .normal)
         recommendationPlayButton.addTarget(self, action: #selector(playRecommendationTapped), for: .touchUpInside)
+        recommendationPlayButton.adjustsImageWhenHighlighted = false
 
         playlistStack.axis = .vertical
         playlistStack.spacing = AppSpacing.s(12)
@@ -198,15 +217,17 @@ final class MusicKitPlayerViewController: BaseViewController {
         playlistControlsStack.alignment = .center
 
         playlistTitleLabel.applyMankiTextStyle(.sectionTitle, color: ThemeManager.palette().text, numberOfLines: 2)
-        playlistTitleLabel.text = "Your Playlists"
-        playlistSelectButton.setTitle("Select Playlist", for: .normal)
+        playlistTitleLabel.text = "プレイリスト"
+        playlistSelectButton.setTitle("選択", for: .normal)
         playlistSelectButton.addTarget(self, action: #selector(selectPlaylistTapped), for: .touchUpInside)
+        playlistSelectButton.adjustsImageWhenHighlighted = false
         playlistNameLabel.applyMankiTextStyle(.body, color: ThemeManager.palette().mutedText, numberOfLines: 0)
         shuffleLabel.applyMankiTextStyle(.caption, color: ThemeManager.palette().text, numberOfLines: 1)
-        shuffleLabel.text = "Shuffle"
+        shuffleLabel.text = "シャッフル"
         shuffleSwitch.addTarget(self, action: #selector(shuffleChanged), for: .valueChanged)
-        playAllButton.setTitle("Play All", for: .normal)
+        playAllButton.setTitle("全曲再生", for: .normal)
         playAllButton.addTarget(self, action: #selector(playAllTapped), for: .touchUpInside)
+        playAllButton.adjustsImageWhenHighlighted = false
 
         tracksTableView.dataSource = self
         tracksTableView.delegate = self
@@ -238,13 +259,16 @@ final class MusicKitPlayerViewController: BaseViewController {
         playbackButtonsStack.spacing = AppSpacing.s(10)
         playbackButtonsStack.distribution = .fillEqually
 
-        previousButton.setTitle("Prev", for: .normal)
-        playPauseButton.setTitle("Play", for: .normal)
-        nextButton.setTitle("Next", for: .normal)
+        previousButton.setTitle("前へ", for: .normal)
+        playPauseButton.setTitle("再生", for: .normal)
+        nextButton.setTitle("次へ", for: .normal)
 
         previousButton.addTarget(self, action: #selector(previousTapped), for: .touchUpInside)
         playPauseButton.addTarget(self, action: #selector(playPauseTapped), for: .touchUpInside)
         nextButton.addTarget(self, action: #selector(nextTapped), for: .touchUpInside)
+        previousButton.adjustsImageWhenHighlighted = false
+        playPauseButton.adjustsImageWhenHighlighted = false
+        nextButton.adjustsImageWhenHighlighted = false
 
         lyricsStack.axis = .vertical
         lyricsStack.spacing = AppSpacing.s(10)
@@ -252,22 +276,25 @@ final class MusicKitPlayerViewController: BaseViewController {
         lyricsStack.layoutMargins = UIEdgeInsets(top: AppSpacing.s(16), left: AppSpacing.s(16), bottom: AppSpacing.s(16), right: AppSpacing.s(16))
 
         lyricsTitleLabel.applyMankiTextStyle(.sectionTitle, color: ThemeManager.palette().text, numberOfLines: 1)
-        lyricsTitleLabel.text = "Lyrics"
+        lyricsTitleLabel.text = "歌詞"
         lyricsNoteLabel.applyMankiTextStyle(.caption, color: ThemeManager.palette().mutedText, numberOfLines: 0)
         targetLevelLabel.applyMankiTextStyle(.caption, color: ThemeManager.palette().accentStrong, numberOfLines: 1)
         keywordTitleLabel.applyMankiTextStyle(.caption, color: ThemeManager.palette().text, numberOfLines: 1)
-        keywordTitleLabel.text = "Keywords from this song"
+        keywordTitleLabel.text = "この曲からおすすめ単語"
+        keywordStatusLabel.applyMankiTextStyle(.caption, color: ThemeManager.palette().mutedText, numberOfLines: 0)
         keywordScrollView.showsHorizontalScrollIndicator = false
         keywordScrollView.alwaysBounceHorizontal = true
         keywordStackView.axis = .horizontal
         keywordStackView.spacing = AppSpacing.s(8)
         keywordStackView.alignment = .fill
+        addKeywordsButton.setTitle("選択した単語をセットに追加", for: .normal)
+        addKeywordsButton.addTarget(self, action: #selector(addSelectedKeywordsTapped), for: .touchUpInside)
         lyricsTextView.isEditable = false
         lyricsTextView.isScrollEnabled = true
         lyricsTextView.textContainerInset = UIEdgeInsets(top: AppSpacing.s(16), left: AppSpacing.s(12), bottom: AppSpacing.s(16), right: AppSpacing.s(12))
         lyricsTextView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
 
-        [recommendationPlayButton, playlistSelectButton, playAllButton, previousButton, playPauseButton, nextButton].forEach {
+        [recommendationPlayButton, playlistSelectButton, playAllButton, previousButton, playPauseButton, nextButton, addKeywordsButton].forEach {
             $0.setContentCompressionResistancePriority(.required, for: .horizontal)
             $0.setContentHuggingPriority(.required, for: .horizontal)
             $0.titleLabel?.lineBreakMode = .byTruncatingTail
@@ -321,7 +348,9 @@ final class MusicKitPlayerViewController: BaseViewController {
         lyricsStack.addArrangedSubview(targetLevelLabel)
         lyricsStack.addArrangedSubview(lyricsNoteLabel)
         lyricsStack.addArrangedSubview(keywordTitleLabel)
+        lyricsStack.addArrangedSubview(keywordStatusLabel)
         lyricsStack.addArrangedSubview(keywordScrollView)
+        lyricsStack.addArrangedSubview(addKeywordsButton)
         lyricsStack.addArrangedSubview(lyricsTextView)
 
         [statusLabel, authorizeButton, recommendationCard, playlistCard, nowPlayingCard, lyricsCard].forEach {
@@ -402,8 +431,10 @@ final class MusicKitPlayerViewController: BaseViewController {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.lastKeywordSignature = ""
-            self?.render()
+            Task { @MainActor [weak self] in
+                self?.lastKeywordSignature = ""
+                self?.render()
+            }
         }
     }
 
@@ -413,37 +444,68 @@ final class MusicKitPlayerViewController: BaseViewController {
     }
 
     private func render() {
-        statusLabel.text = playbackController.statusMessage
+        guard isViewLoaded else { return }
+        let isInWindow = view.window != nil
+        if !isInWindow {
+            needsDeferredRender = true
+        }
+
         authorizeButton.isHidden = playbackController.isAuthorized
-        targetLevelLabel.text = "Target: \(EnglishGoalLevelStore.current.displayName)"
+        let goalText = EnglishGoalLevelStore.storedText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if lastRenderedStatusMessage != playbackController.statusMessage {
+            statusLabel.text = playbackController.statusMessage
+            lastRenderedStatusMessage = playbackController.statusMessage
+        }
+        if lastAppliedGoalText != goalText {
+            targetLevelLabel.text = goalText.isEmpty ? "目標：未設定" : "目標：\(goalText)"
+            lastAppliedGoalText = goalText
+        }
 
-        recommendationTitleLabel.text = playbackController.recommendedSong?.title ?? "Today's recommendation unavailable"
-        recommendationArtistLabel.text = playbackController.recommendedSong?.artistName ?? "Connect Apple Music to fetch a recommended song."
+        recommendationTitleLabel.text = playbackController.recommendedSong?.title ?? "今日のおすすめはまだありません"
+        recommendationArtistLabel.text = playbackController.recommendedSong?.artistName ?? "Apple Musicに接続するとおすすめを取得できます。"
         recommendationPlayButton.isEnabled = playbackController.recommendedSong != nil && playbackController.canPlayCatalogContent
-        updateArtwork(playbackController.recommendedSong?.artwork?.url(width: 320, height: 320), into: recommendationArtworkView, task: &recommendationArtworkTask)
+        updateArtwork(playbackController.recommendedSong?.artwork?.url(width: 320, height: 320), into: recommendationArtworkView, task: &recommendationArtworkTask, previousURL: &recommendationArtworkURL)
 
-        playlistNameLabel.text = playbackController.selectedPlaylist?.title ?? "No playlist selected"
+        let playlistTitle = playbackController.selectedPlaylist?.title ?? "プレイリスト未選択"
+        if lastRenderedPlaylistTitle != playlistTitle {
+            playlistNameLabel.text = playlistTitle
+            lastRenderedPlaylistTitle = playlistTitle
+        }
         playAllButton.isEnabled = playbackController.selectedPlaylist != nil && !playbackController.playlistTracks.isEmpty && playbackController.canPlayCatalogContent
         shuffleSwitch.isOn = playbackController.shuffleEnabled
         updateTracksTableHeight()
-        tracksTableView.reloadData()
+        let trackIDs = playbackController.playlistTracks.map(\.id)
+        if lastRenderedPlaylistTrackIDs != trackIDs {
+            lastRenderedPlaylistTrackIDs = trackIDs
+            if isInWindow {
+                tracksTableView.reloadData()
+            }
+        } else if isInWindow {
+            tracksTableView.setNeedsLayout()
+        }
 
-        nowPlayingTitleLabel.text = playbackController.currentSong?.title ?? "Nothing playing"
-        nowPlayingArtistLabel.text = playbackController.currentSong?.artistName ?? "Play a song or playlist"
-        playPauseButton.setTitle(playbackController.isPlaying ? "Pause" : "Play", for: .normal)
+        nowPlayingTitleLabel.text = playbackController.currentSong?.title ?? "再生中の曲はありません"
+        nowPlayingArtistLabel.text = playbackController.currentSong?.artistName ?? "曲やプレイリストを再生してください"
+        playPauseButton.setTitle(playbackController.isPlaying ? "停止" : "再生", for: .normal)
         previousButton.isEnabled = playbackController.canControlPlayback
         playPauseButton.isEnabled = playbackController.canControlPlayback
         nextButton.isEnabled = playbackController.canControlPlayback
-        updateArtwork(playbackController.currentSong?.artwork?.url(width: 320, height: 320), into: nowPlayingArtworkView, task: &nowPlayingArtworkTask)
+        updateArtwork(playbackController.currentSong?.artwork?.url(width: 320, height: 320), into: nowPlayingArtworkView, task: &nowPlayingArtworkTask, previousURL: &nowPlayingArtworkURL)
 
         refreshExtractedKeywordsIfNeeded()
         renderKeywords()
+        updateAddKeywordsButton()
         renderLyrics()
-        updateResponsiveLayout()
+        if isInWindow {
+            updateResponsiveLayout()
+        }
     }
 
     private func renderLyrics() {
-        lyricsNoteLabel.text = playbackController.lyricsNotice
+        if lastRenderedLyricsNotice != playbackController.lyricsNotice {
+            lyricsNoteLabel.text = playbackController.lyricsNotice
+            lastRenderedLyricsNotice = playbackController.lyricsNotice
+        }
         let palette = ThemeManager.palette()
         let attributed = NSMutableAttributedString()
 
@@ -464,7 +526,7 @@ final class MusicKitPlayerViewController: BaseViewController {
         let activeIndex = playbackController.activeLyricLineIndex
         for (index, line) in playbackController.currentLyrics.enumerated() {
             let lineRange = NSRange(location: attributed.length, length: (line.text as NSString).length)
-            let isSelectedLine = selectedKeyword?.sourceLine == line.text
+            let isSelectedLine = focusedKeyword?.sourceLine == line.text
             let attrs: [NSAttributedString.Key: Any] = [
                 .font: AppFont.jp(size: index == activeIndex ? 18 : 16, weight: index == activeIndex ? .bold : .regular),
                 .foregroundColor: index == activeIndex ? palette.text : palette.mutedText,
@@ -480,10 +542,13 @@ final class MusicKitPlayerViewController: BaseViewController {
         }
 
         lyricsTextView.attributedText = attributed
-        scrollLyricsToActiveLine()
+        if view.window != nil {
+            scrollLyricsToActiveLine()
+        }
     }
 
     private func scrollLyricsToActiveLine() {
+        guard view.window != nil else { return }
         let index = playbackController.activeLyricLineIndex
         guard index >= 0, index < playbackController.currentLyrics.count else { return }
         let prefix = playbackController.currentLyrics.prefix(index).map(\.text).joined(separator: "\n\n")
@@ -500,17 +565,63 @@ final class MusicKitPlayerViewController: BaseViewController {
 
     private func refreshExtractedKeywordsIfNeeded() {
         let currentSongID = playbackController.currentSong?.id.rawValue ?? "none"
-        let signature = "\(currentSongID)|\(EnglishGoalLevelStore.current.rawValue)|\(playbackController.currentLyrics.map(\.text).joined(separator: "|"))"
+        let goalText = EnglishGoalLevelStore.storedText?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let lyrics = playbackController.currentLyrics.map(\.text).joined(separator: "\n")
+
+        if goalText.isEmpty {
+            keywordExtractionTask?.cancel()
+            extractedKeywords = []
+            selectedKeywordIDs.removeAll()
+            focusedKeyword = nil
+            updateKeywordStatus("設定で目標を入力すると、この曲に合った単語をおすすめできます")
+            lastKeywordSignature = "missing-goal-\(currentSongID)"
+            return
+        }
+
+        guard !lyrics.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            keywordExtractionTask?.cancel()
+            extractedKeywords = []
+            selectedKeywordIDs.removeAll()
+            focusedKeyword = nil
+            updateKeywordStatus("この曲の歌詞がまだありません")
+            lastKeywordSignature = "missing-lyrics-\(currentSongID)"
+            return
+        }
+
+        let songTitle = playbackController.currentSong?.title ?? "この曲"
+        let artistName = playbackController.currentSong?.artistName ?? "不明なアーティスト"
+        let signature = "\(currentSongID)|\(goalText)|\(lyrics)"
         guard signature != lastKeywordSignature else { return }
         lastKeywordSignature = signature
-        extractedKeywords = Array(
-            LyricKeywordExtractor.extract(
-                from: playbackController.currentLyrics,
-                goalLevel: EnglishGoalLevelStore.current
-            ).prefix(10)
-        )
-        if let selectedKeyword, !extractedKeywords.contains(selectedKeyword) {
-            self.selectedKeyword = nil
+        keywordExtractionTask?.cancel()
+        extractedKeywords = []
+        selectedKeywordIDs.removeAll()
+        focusedKeyword = nil
+        updateKeywordStatus("この曲からおすすめ単語を抽出しています...")
+
+        keywordExtractionTask = Task { [weak self] in
+            guard let self else { return }
+            let result = try? await self.keywordExtractor.extractKeywords(
+                from: lyrics,
+                goalText: goalText,
+                songTitle: songTitle,
+                artistName: artistName
+            )
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                self.extractedKeywords = Array((result ?? []).prefix(12))
+                self.selectedKeywordIDs = self.selectedKeywordIDs.intersection(Set(self.extractedKeywords.map(\.id)))
+                if let focusedKeyword = self.focusedKeyword, !self.extractedKeywords.contains(focusedKeyword) {
+                    self.focusedKeyword = nil
+                }
+                let message = self.extractedKeywords.isEmpty
+                    ? "この曲からおすすめ単語を見つけられませんでした"
+                    : "タップで選択、長押しで意味と歌詞の元行を表示できます"
+                self.updateKeywordStatus(message)
+                self.renderKeywords()
+                self.updateAddKeywordsButton()
+                self.renderLyrics()
+            }
         }
     }
 
@@ -522,33 +633,49 @@ final class MusicKitPlayerViewController: BaseViewController {
         keywordButtons.removeAll()
 
         guard !extractedKeywords.isEmpty else {
-            let emptyButton = FilterChipButton(frame: .zero)
-            emptyButton.apply(title: "No keywords yet", selected: false)
-            emptyButton.isEnabled = false
-            keywordStackView.addArrangedSubview(emptyButton)
-            keywordButtons = [emptyButton]
             return
         }
 
         for keyword in extractedKeywords {
             let button = FilterChipButton(frame: .zero)
-            button.apply(title: keyword.word, selected: keyword == selectedKeyword)
+            button.apply(title: keyword.word, selected: selectedKeywordIDs.contains(keyword.id))
             button.addAction(UIAction { [weak self] _ in
                 self?.handleKeywordTap(keyword)
             }, for: .touchUpInside)
+            let press = UILongPressGestureRecognizer(target: self, action: #selector(handleKeywordLongPress(_:)))
+            press.minimumPressDuration = 0.35
+            button.addGestureRecognizer(press)
+            button.accessibilityHint = "タップで選択、長押しで詳細"
             keywordStackView.addArrangedSubview(button)
             keywordButtons.append(button)
         }
     }
 
-    private func handleKeywordTap(_ keyword: LyricKeyword) {
-        selectedKeyword = keyword
+    private func handleKeywordTap(_ keyword: ExtractedKeyword) {
+        focusedKeyword = keyword
+        if selectedKeywordIDs.contains(keyword.id) {
+            selectedKeywordIDs.remove(keyword.id)
+        } else {
+            selectedKeywordIDs.insert(keyword.id)
+        }
         renderKeywords()
+        updateAddKeywordsButton()
         renderLyrics()
         scrollToKeywordSourceLine(keyword)
     }
 
-    private func scrollToKeywordSourceLine(_ keyword: LyricKeyword) {
+    @objc private func handleKeywordLongPress(_ gesture: UILongPressGestureRecognizer) {
+        guard gesture.state == .began,
+              let button = gesture.view as? FilterChipButton,
+              let index = keywordButtons.firstIndex(of: button),
+              index < extractedKeywords.count else {
+            return
+        }
+        presentKeywordDetail(extractedKeywords[index])
+    }
+
+    private func scrollToKeywordSourceLine(_ keyword: ExtractedKeyword) {
+        guard view.window != nil else { return }
         guard let index = playbackController.currentLyrics.firstIndex(where: { $0.text == keyword.sourceLine || $0.text.localizedCaseInsensitiveContains(keyword.word) }) else {
             return
         }
@@ -580,6 +707,21 @@ final class MusicKitPlayerViewController: BaseViewController {
                 searchRange = NSRange(location: nextLocation, length: nsLine.length - nextLocation)
             }
         }
+    }
+
+    private func updateKeywordStatus(_ message: String) {
+        guard keywordStatusMessage != message else { return }
+        keywordStatusMessage = message
+        keywordStatusLabel.text = message
+    }
+
+    private func updateAddKeywordsButton() {
+        let count = selectedKeywordIDs.count
+        let title = count > 0
+            ? "選択した単語をセットに追加 (\(count))"
+            : "選択した単語をセットに追加"
+        addKeywordsButton.setTitle(title, for: .normal)
+        addKeywordsButton.isEnabled = count > 0
     }
 
     private var isCompactWidth: Bool {
@@ -617,18 +759,226 @@ final class MusicKitPlayerViewController: BaseViewController {
         updateTracksTableHeight()
     }
 
-    private func updateArtwork(_ url: URL?, into imageView: UIImageView, task: inout Task<Void, Never>?) {
+    private func updateArtwork(_ url: URL?, into imageView: UIImageView, task: inout Task<Void, Never>?, previousURL: inout URL?) {
+        guard previousURL != url else { return }
+        previousURL = url
         task?.cancel()
-        imageView.image = nil
+        if url == nil {
+            UIView.performWithoutAnimation {
+                imageView.image = nil
+                imageView.layoutIfNeeded()
+            }
+            return
+        }
         guard let url else { return }
         task = Task { [weak imageView] in
             guard let (data, _) = try? await URLSession.shared.data(from: url),
                   let image = UIImage(data: data),
                   !Task.isCancelled else { return }
             await MainActor.run {
-                imageView?.image = image
+                UIView.performWithoutAnimation {
+                    imageView?.image = image
+                    imageView?.layoutIfNeeded()
+                }
             }
         }
+    }
+
+    private func selectedKeywordsInDisplayOrder() -> [ExtractedKeyword] {
+        extractedKeywords.filter { selectedKeywordIDs.contains($0.id) }
+    }
+
+    private func presentKeywordDetail(_ keyword: ExtractedKeyword) {
+        let stack = UIStackView()
+        stack.axis = .vertical
+        stack.spacing = AppSpacing.s(10)
+
+        let meaningLabel = UILabel()
+        meaningLabel.applyMankiTextStyle(.body, color: ThemeManager.palette().text, numberOfLines: 0)
+        meaningLabel.text = "英語の意味: \(keyword.meaning)"
+
+        let japaneseLabel = UILabel()
+        japaneseLabel.applyMankiTextStyle(.body, color: ThemeManager.palette().text, numberOfLines: 0)
+        japaneseLabel.text = "日本語: \(keyword.japaneseMeaning)"
+
+        let reasonLabel = UILabel()
+        reasonLabel.applyMankiTextStyle(.caption, color: ThemeManager.palette().mutedText, numberOfLines: 0)
+        reasonLabel.text = "理由: \(keyword.reason)"
+
+        let sourceLabel = UILabel()
+        sourceLabel.applyMankiTextStyle(.caption, color: ThemeManager.palette().mutedText, numberOfLines: 0)
+        sourceLabel.text = "歌詞: \(keyword.sourceLine)"
+
+        [meaningLabel, japaneseLabel, reasonLabel, sourceLabel].forEach {
+            stack.addArrangedSubview($0)
+        }
+
+        let selectTitle = selectedKeywordIDs.contains(keyword.id) ? "選択解除" : "この単語を選択"
+        presentUnifiedModal(
+            title: keyword.word,
+            message: nil,
+            contentView: stack,
+            actions: [
+                UnifiedModalAction(title: selectTitle) { [weak self] in
+                    self?.handleKeywordTap(keyword)
+                },
+                UnifiedModalAction(title: "閉じる", style: .cancel)
+            ]
+        )
+    }
+
+    @objc private func addSelectedKeywordsTapped() {
+        let keywords = selectedKeywordsInDisplayOrder()
+        guard !keywords.isEmpty else {
+            presentUnifiedModal(
+                title: "単語未選択",
+                message: "追加する単語を選んでください",
+                actions: [UnifiedModalAction(title: "OK")]
+            )
+            return
+        }
+
+        presentUnifiedModal(
+            title: "セットに追加",
+            message: "追加先を選んでください",
+            actions: [
+                UnifiedModalAction(title: "既存セットに追加") { [weak self] in
+                    self?.presentExistingSetChooser(for: keywords)
+                },
+                UnifiedModalAction(title: "新しいセットを作って追加") { [weak self] in
+                    self?.presentCreateSetPrompt(for: keywords)
+                },
+                UnifiedModalAction(title: "キャンセル", style: .cancel)
+            ]
+        )
+    }
+
+    private func presentExistingSetChooser(for keywords: [ExtractedKeyword]) {
+        let sets = SetStore.loadSets()
+        guard !sets.isEmpty else {
+            presentUnifiedModal(
+                title: "セットがありません",
+                message: "既存セットがないため、新しいセットを作成してください。",
+                actions: [
+                    UnifiedModalAction(title: "新しいセットを作る") { [weak self] in
+                        self?.presentCreateSetPrompt(for: keywords)
+                    },
+                    UnifiedModalAction(title: "キャンセル", style: .cancel)
+                ]
+            )
+            return
+        }
+
+        let actions = sets.map { set in
+            UnifiedModalAction(title: sanitizedSetName(set.name)) { [weak self] in
+                self?.saveKeywords(keywords, intoExistingSetID: set.id)
+            }
+        } + [UnifiedModalAction(title: "キャンセル", style: .cancel)]
+
+        presentUnifiedModal(
+            title: "追加先のセットを選択",
+            message: nil,
+            actions: actions
+        )
+    }
+
+    private func presentCreateSetPrompt(for keywords: [ExtractedKeyword]) {
+        let textField = UITextField()
+        textField.borderStyle = .roundedRect
+        textField.placeholder = "セット名"
+        let defaultName = "\(playbackController.currentSong?.title ?? "この曲") からの単語"
+        textField.text = defaultName
+        presentUnifiedModal(
+            title: "新しいセットを作成",
+            message: nil,
+            contentView: textField,
+            actions: [
+                UnifiedModalAction(title: "キャンセル", style: .cancel),
+                UnifiedModalAction(title: "作成して追加") { [weak self] in
+                    let name = textField.text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                    self?.saveKeywords(keywords, intoNewSetNamed: name.isEmpty ? defaultName : name)
+                }
+            ]
+        )
+    }
+
+    private func saveKeywords(_ keywords: [ExtractedKeyword], intoExistingSetID setID: String) {
+        let storage = JsonVocabStorage()
+        var savedWords = storage.loadAll()
+        var sets = SetStore.loadSets()
+        guard let setIndex = sets.firstIndex(where: { $0.id == setID }) else {
+            presentUnifiedModal(
+                title: "保存できません",
+                message: "追加先のセットを選んでください",
+                actions: [UnifiedModalAction(title: "OK")]
+            )
+            return
+        }
+
+        let result = persistKeywords(keywords, savedWords: &savedWords, set: &sets[setIndex])
+        storage.saveAll(savedWords)
+        SetStore.saveSets(sets)
+        presentSaveResultAlert(addedCount: result.addedCount, skippedCount: result.skippedCount)
+    }
+
+    private func saveKeywords(_ keywords: [ExtractedKeyword], intoNewSetNamed name: String) {
+        let storage = JsonVocabStorage()
+        var savedWords = storage.loadAll()
+        var newSet = SavedSet(name: name, wordIDs: [])
+        let result = persistKeywords(keywords, savedWords: &savedWords, set: &newSet)
+        var sets = SetStore.loadSets()
+        sets.append(newSet)
+        storage.saveAll(savedWords)
+        SetStore.saveSets(sets)
+        presentSaveResultAlert(addedCount: result.addedCount, skippedCount: result.skippedCount)
+    }
+
+    private func persistKeywords(_ keywords: [ExtractedKeyword], savedWords: inout [SavedWord], set: inout SavedSet) -> (addedCount: Int, skippedCount: Int) {
+        var addedCount = 0
+        var skippedCount = 0
+
+        for keyword in keywords {
+            let wordID: String
+            if let existingIndex = savedWords.firstIndex(where: { $0.english.caseInsensitiveCompare(keyword.word) == .orderedSame }) {
+                wordID = savedWords[existingIndex].id
+            } else {
+                let savedWord = keyword.asSavedWord()
+                savedWords.append(savedWord)
+                wordID = savedWord.id
+            }
+
+            if set.wordIDs.contains(wordID) {
+                skippedCount += 1
+                continue
+            }
+
+            set.wordIDs.append(wordID)
+            addedCount += 1
+        }
+
+        return (addedCount, skippedCount)
+    }
+
+    private func presentSaveResultAlert(addedCount: Int, skippedCount: Int) {
+        let message: String
+        if addedCount == 0 {
+            message = "選択した単語はすべて追加済みでした"
+        } else if skippedCount == 0 {
+            message = "\(addedCount)個の単語をセットに追加しました"
+        } else {
+            message = "\(addedCount)個の単語をセットに追加しました\n\(skippedCount)個は重複のため追加しませんでした"
+        }
+
+        presentUnifiedModal(
+            title: "追加しました",
+            message: message,
+            actions: [UnifiedModalAction(title: "OK")]
+        )
+    }
+
+    private func sanitizedSetName(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "名称未設定" : trimmed
     }
 
     @objc private func authorizeTapped() {

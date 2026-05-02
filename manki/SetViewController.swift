@@ -163,9 +163,8 @@ final class SetViewController: UIViewController, UITableViewDataSource, UITableV
         tableView.allowsSelectionDuringEditing = true
     }
 
-    func prepareForInitialTransition(in containerBounds: CGRect) {
+    func prepareForInitialTransition(in _: CGRect) {
         loadViewIfNeeded()
-        view.frame = containerBounds
         applyTheme()
         reloadData()
         view.setNeedsLayout()
@@ -1523,7 +1522,8 @@ final class SetViewController: UIViewController, UITableViewDataSource, UITableV
             }
         ]
         actions.append(contentsOf: folders.map { folder in
-            UnifiedModalAction(title: folder.name) { [weak self] in
+            let title = folder.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            return UnifiedModalAction(title: title.isEmpty ? "名称未設定" : title) { [weak self] in
                 self?.moveSet(setID: set.id, to: folder.id)
             }
         })

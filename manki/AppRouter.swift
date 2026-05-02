@@ -11,33 +11,33 @@ enum AppRoute: CaseIterable {
     case playlists
     case flip
 
-    static let menuRoutes: [AppRoute] = [.home, .music, .sets, .test, .record, .settings]
+    static let menuRoutes: [AppRoute] = [.home, .folder, .sets, .flip, .test, .music, .settings]
 
     var title: String {
         switch self {
-        case .home: return "Home"
-        case .music: return "Music"
-        case .sets: return "Study"
-        case .test: return "Test"
-        case .record: return "Record"
-        case .settings: return "Settings"
-        case .folder: return "Folder"
-        case .playlists: return "Playlist"
-        case .flip: return "Flip"
+        case .home: return "ホーム"
+        case .music: return "音楽"
+        case .sets: return "単語セット"
+        case .test: return "テスト"
+        case .record: return "記録"
+        case .settings: return "設定"
+        case .folder: return "フォルダー"
+        case .playlists: return "プレイリスト"
+        case .flip: return "フリップ"
         }
     }
 
     var systemImageName: String {
         switch self {
         case .home: return "house.fill"
-        case .music: return "music.note.list"
-        case .sets: return "book.fill"
+        case .music: return "music.note"
+        case .sets: return "rectangle.stack.fill"
         case .test: return "checkmark.circle.fill"
         case .record: return "calendar"
         case .settings: return "gearshape.fill"
         case .folder: return "folder.fill"
         case .playlists: return "music.note.list"
-        case .flip: return "rectangle.on.rectangle.angled.fill"
+        case .flip: return "arrow.triangle.2.circlepath"
         }
     }
 
@@ -131,15 +131,30 @@ enum AppRouter {
             setController.prepareForInitialTransition(in: navigationController.view.bounds)
         } else {
             controller.loadViewIfNeeded()
-            controller.view.frame = navigationController.view.bounds
+            controller.view.setNeedsLayout()
+            controller.view.layoutIfNeeded()
         }
     }
 }
 
 extension AppRoute {
+    private static let menuSymbolConfiguration = UIImage.SymbolConfiguration(
+        pointSize: 18,
+        weight: .semibold,
+        scale: .medium
+    )
+    private static var iconCache: [String: UIImage] = [:]
+
     func menuIcon(tintColor: UIColor) -> UIImage? {
-        let configuration = UIImage.SymbolConfiguration(pointSize: 17, weight: .semibold, scale: .medium)
-        return UIImage(systemName: systemImageName, withConfiguration: configuration)?
+        let cacheKey = "\(systemImageName)-\(tintColor.description)"
+        if let cached = AppRoute.iconCache[cacheKey] {
+            return cached
+        }
+        let icon = UIImage(systemName: systemImageName, withConfiguration: AppRoute.menuSymbolConfiguration)?
             .withTintColor(tintColor, renderingMode: .alwaysOriginal)
+        if let icon {
+            AppRoute.iconCache[cacheKey] = icon
+        }
+        return icon
     }
 }

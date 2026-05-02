@@ -41,6 +41,7 @@ extension Notification.Name {
 
 enum EnglishGoalLevelStore {
     static let storageKey = "englishGoalLevel"
+    static let textStorageKey = "englishGoalLevelText"
 
     static var current: EnglishGoalLevel {
         get {
@@ -52,6 +53,22 @@ enum EnglishGoalLevelStore {
         }
         set {
             UserDefaults.standard.set(newValue.rawValue, forKey: storageKey)
+            NotificationCenter.default.post(name: .englishGoalLevelDidChange, object: nil)
+        }
+    }
+
+    static var storedText: String? {
+        let stored = UserDefaults.standard.string(forKey: textStorageKey)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return stored.isEmpty ? nil : stored
+    }
+
+    static var currentText: String {
+        get {
+            storedText ?? "英検準1級"
+        }
+        set {
+            let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            UserDefaults.standard.set(trimmed, forKey: textStorageKey)
             NotificationCenter.default.post(name: .englishGoalLevelDidChange, object: nil)
         }
     }
