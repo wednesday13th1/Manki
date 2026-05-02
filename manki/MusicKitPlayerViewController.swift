@@ -13,22 +13,36 @@ final class MusicKitPlayerViewController: BaseViewController {
     private let authorizeButton = UIButton(type: .system)
 
     private let recommendationCard = UIView()
+    private let recommendationStack = UIStackView()
+    private let recommendationMediaStack = UIStackView()
+    private let recommendationTextStack = UIStackView()
     private let recommendationArtworkView = UIImageView()
     private let recommendationTitleLabel = UILabel()
     private let recommendationArtistLabel = UILabel()
     private let recommendationPlayButton = UIButton(type: .system)
+    private var recommendationArtworkWidthConstraint: NSLayoutConstraint?
+    private var recommendationArtworkHeightConstraint: NSLayoutConstraint?
 
     private let playlistCard = UIView()
+    private let playlistStack = UIStackView()
+    private let playlistHeaderStack = UIStackView()
+    private let playlistControlsStack = UIStackView()
+    private let shuffleInfoStack = UIStackView()
     private let playlistTitleLabel = UILabel()
+    private let playlistHeaderSpacer = UIView()
     private let playlistSelectButton = UIButton(type: .system)
     private let playlistNameLabel = UILabel()
     private let shuffleSwitch = UISwitch()
     private let shuffleLabel = UILabel()
+    private let playlistControlsSpacer = UIView()
     private let playAllButton = UIButton(type: .system)
     private let tracksTableView = UITableView(frame: .zero, style: .plain)
     private var tracksTableHeightConstraint: NSLayoutConstraint?
 
     private let nowPlayingCard = UIView()
+    private let nowPlayingStack = UIStackView()
+    private let nowPlayingMediaStack = UIStackView()
+    private let nowPlayingTextStack = UIStackView()
     private let nowPlayingArtworkView = UIImageView()
     private let nowPlayingTitleLabel = UILabel()
     private let nowPlayingArtistLabel = UILabel()
@@ -36,20 +50,35 @@ final class MusicKitPlayerViewController: BaseViewController {
     private let previousButton = UIButton(type: .system)
     private let playPauseButton = UIButton(type: .system)
     private let nextButton = UIButton(type: .system)
+    private var nowPlayingArtworkWidthConstraint: NSLayoutConstraint?
+    private var nowPlayingArtworkHeightConstraint: NSLayoutConstraint?
 
     private let lyricsCard = UIView()
+    private let lyricsStack = UIStackView()
     private let lyricsTitleLabel = UILabel()
     private let lyricsNoteLabel = UILabel()
+    private let targetLevelLabel = UILabel()
+    private let keywordTitleLabel = UILabel()
+    private let keywordScrollView = UIScrollView()
+    private let keywordStackView = UIStackView()
     private let lyricsTextView = UITextView()
+    private var keywordScrollHeightConstraint: NSLayoutConstraint?
+    private var lyricsHeightConstraint: NSLayoutConstraint?
 
     private var recommendationArtworkTask: Task<Void, Never>?
     private var nowPlayingArtworkTask: Task<Void, Never>?
+    private var goalLevelObserver: NSObjectProtocol?
+    private var extractedKeywords: [LyricKeyword] = []
+    private var selectedKeyword: LyricKeyword?
+    private var keywordButtons: [FilterChipButton] = []
+    private var lastKeywordSignature = ""
 
     override func viewDidLoad() {
         super.viewDidLoad()
         title = "Music"
         configureUI()
         bindState()
+        observeGoalLevel()
         Task { await bootstrap() }
     }
 
@@ -59,17 +88,34 @@ final class MusicKitPlayerViewController: BaseViewController {
         nowPlayingArtworkTask?.cancel()
     }
 
+    deinit {
+        if let goalLevelObserver {
+            NotificationCenter.default.removeObserver(goalLevelObserver)
+        }
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        render()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        updateResponsiveLayout()
+    }
+
     override func applyBaseTheme() {
         super.applyBaseTheme()
         let palette = ThemeManager.palette()
 
-        [statusLabel, recommendationTitleLabel, recommendationArtistLabel, playlistTitleLabel, playlistNameLabel, shuffleLabel, nowPlayingTitleLabel, nowPlayingArtistLabel, lyricsTitleLabel, lyricsNoteLabel].forEach {
+        [statusLabel, recommendationTitleLabel, recommendationArtistLabel, playlistTitleLabel, playlistNameLabel, shuffleLabel, nowPlayingTitleLabel, nowPlayingArtistLabel, lyricsTitleLabel, lyricsNoteLabel, targetLevelLabel, keywordTitleLabel].forEach {
             $0.textColor = palette.text
         }
         recommendationArtistLabel.textColor = palette.mutedText
         playlistNameLabel.textColor = palette.mutedText
         nowPlayingArtistLabel.textColor = palette.mutedText
         lyricsNoteLabel.textColor = palette.mutedText
+        targetLevelLabel.textColor = palette.accentStrong
         statusLabel.textColor = palette.mutedText
 
         [recommendationCard, playlistCard, nowPlayingCard, lyricsCard].forEach {
@@ -94,11 +140,13 @@ final class MusicKitPlayerViewController: BaseViewController {
         tracksTableView.backgroundColor = .clear
         tracksTableView.separatorStyle = .none
         tracksTableView.reloadData()
+        keywordButtons.forEach { $0.apply(title: $0.title(for: .normal) ?? "", selected: false) }
+        renderKeywords()
         renderLyrics()
     }
 
     private func configureUI() {
-        [scrollView, contentStack, statusLabel, authorizeButton, recommendationCard, recommendationArtworkView, recommendationTitleLabel, recommendationArtistLabel, recommendationPlayButton, playlistCard, playlistTitleLabel, playlistSelectButton, playlistNameLabel, shuffleLabel, playAllButton, tracksTableView, nowPlayingCard, nowPlayingArtworkView, nowPlayingTitleLabel, nowPlayingArtistLabel, playbackButtonsStack, previousButton, playPauseButton, nextButton, lyricsCard, lyricsTitleLabel, lyricsNoteLabel, lyricsTextView].forEach {
+        [scrollView, contentStack, statusLabel, authorizeButton, recommendationCard, recommendationStack, recommendationMediaStack, recommendationTextStack, recommendationArtworkView, recommendationTitleLabel, recommendationArtistLabel, recommendationPlayButton, playlistCard, playlistStack, playlistHeaderStack, playlistControlsStack, shuffleInfoStack, playlistTitleLabel, playlistHeaderSpacer, playlistSelectButton, playlistNameLabel, shuffleLabel, playlistControlsSpacer, playAllButton, tracksTableView, nowPlayingCard, nowPlayingStack, nowPlayingMediaStack, nowPlayingTextStack, nowPlayingArtworkView, nowPlayingTitleLabel, nowPlayingArtistLabel, playbackButtonsStack, previousButton, playPauseButton, nextButton, lyricsCard, lyricsStack, lyricsTitleLabel, lyricsNoteLabel, targetLevelLabel, keywordTitleLabel, keywordScrollView, keywordStackView, lyricsTextView].forEach {
             $0.translatesAutoresizingMaskIntoConstraints = false
         }
 
@@ -114,12 +162,42 @@ final class MusicKitPlayerViewController: BaseViewController {
         recommendationArtworkView.layer.cornerRadius = 14
         recommendationArtworkView.layer.borderWidth = 1.5
 
+        recommendationStack.axis = .vertical
+        recommendationStack.spacing = AppSpacing.s(12)
+        recommendationStack.isLayoutMarginsRelativeArrangement = true
+        recommendationStack.layoutMargins = UIEdgeInsets(top: AppSpacing.s(16), left: AppSpacing.s(16), bottom: AppSpacing.s(16), right: AppSpacing.s(16))
+
+        recommendationMediaStack.axis = .horizontal
+        recommendationMediaStack.spacing = AppSpacing.s(14)
+        recommendationMediaStack.alignment = .top
+
+        recommendationTextStack.axis = .vertical
+        recommendationTextStack.spacing = AppSpacing.s(8)
+        recommendationTextStack.alignment = .fill
+
         recommendationTitleLabel.applyMankiTextStyle(.sectionTitle, color: ThemeManager.palette().text, numberOfLines: 2)
         recommendationArtistLabel.applyMankiTextStyle(.body, color: ThemeManager.palette().mutedText, numberOfLines: 2)
         recommendationPlayButton.setTitle("Play Today", for: .normal)
         recommendationPlayButton.addTarget(self, action: #selector(playRecommendationTapped), for: .touchUpInside)
 
-        playlistTitleLabel.applyMankiTextStyle(.sectionTitle, color: ThemeManager.palette().text, numberOfLines: 1)
+        playlistStack.axis = .vertical
+        playlistStack.spacing = AppSpacing.s(12)
+        playlistStack.isLayoutMarginsRelativeArrangement = true
+        playlistStack.layoutMargins = UIEdgeInsets(top: AppSpacing.s(16), left: AppSpacing.s(16), bottom: AppSpacing.s(12), right: AppSpacing.s(16))
+
+        playlistHeaderStack.axis = .horizontal
+        playlistHeaderStack.spacing = AppSpacing.s(10)
+        playlistHeaderStack.alignment = .center
+
+        shuffleInfoStack.axis = .horizontal
+        shuffleInfoStack.spacing = AppSpacing.s(8)
+        shuffleInfoStack.alignment = .center
+
+        playlistControlsStack.axis = .horizontal
+        playlistControlsStack.spacing = AppSpacing.s(10)
+        playlistControlsStack.alignment = .center
+
+        playlistTitleLabel.applyMankiTextStyle(.sectionTitle, color: ThemeManager.palette().text, numberOfLines: 2)
         playlistTitleLabel.text = "Your Playlists"
         playlistSelectButton.setTitle("Select Playlist", for: .normal)
         playlistSelectButton.addTarget(self, action: #selector(selectPlaylistTapped), for: .touchUpInside)
@@ -137,15 +215,27 @@ final class MusicKitPlayerViewController: BaseViewController {
         tracksTableView.isScrollEnabled = false
         tracksTableView.register(MusicKitTrackCell.self, forCellReuseIdentifier: MusicKitTrackCell.reuseIdentifier)
 
+        nowPlayingStack.axis = .vertical
+        nowPlayingStack.spacing = AppSpacing.s(12)
+        nowPlayingStack.isLayoutMarginsRelativeArrangement = true
+        nowPlayingStack.layoutMargins = UIEdgeInsets(top: AppSpacing.s(16), left: AppSpacing.s(16), bottom: AppSpacing.s(16), right: AppSpacing.s(16))
+
+        nowPlayingMediaStack.axis = .horizontal
+        nowPlayingMediaStack.spacing = AppSpacing.s(14)
+        nowPlayingMediaStack.alignment = .top
+
+        nowPlayingTextStack.axis = .vertical
+        nowPlayingTextStack.spacing = AppSpacing.s(6)
+
         nowPlayingArtworkView.contentMode = .scaleAspectFill
         nowPlayingArtworkView.clipsToBounds = true
         nowPlayingArtworkView.layer.cornerRadius = 14
         nowPlayingArtworkView.layer.borderWidth = 1.5
         nowPlayingTitleLabel.applyMankiTextStyle(.sectionTitle, color: ThemeManager.palette().text, numberOfLines: 2)
-        nowPlayingArtistLabel.applyMankiTextStyle(.body, color: ThemeManager.palette().mutedText, numberOfLines: 1)
+        nowPlayingArtistLabel.applyMankiTextStyle(.body, color: ThemeManager.palette().mutedText, numberOfLines: 2)
 
         playbackButtonsStack.axis = .horizontal
-        playbackButtonsStack.spacing = AppSpacing.s(12)
+        playbackButtonsStack.spacing = AppSpacing.s(10)
         playbackButtonsStack.distribution = .fillEqually
 
         previousButton.setTitle("Prev", for: .normal)
@@ -156,38 +246,86 @@ final class MusicKitPlayerViewController: BaseViewController {
         playPauseButton.addTarget(self, action: #selector(playPauseTapped), for: .touchUpInside)
         nextButton.addTarget(self, action: #selector(nextTapped), for: .touchUpInside)
 
+        lyricsStack.axis = .vertical
+        lyricsStack.spacing = AppSpacing.s(10)
+        lyricsStack.isLayoutMarginsRelativeArrangement = true
+        lyricsStack.layoutMargins = UIEdgeInsets(top: AppSpacing.s(16), left: AppSpacing.s(16), bottom: AppSpacing.s(16), right: AppSpacing.s(16))
+
         lyricsTitleLabel.applyMankiTextStyle(.sectionTitle, color: ThemeManager.palette().text, numberOfLines: 1)
         lyricsTitleLabel.text = "Lyrics"
         lyricsNoteLabel.applyMankiTextStyle(.caption, color: ThemeManager.palette().mutedText, numberOfLines: 0)
+        targetLevelLabel.applyMankiTextStyle(.caption, color: ThemeManager.palette().accentStrong, numberOfLines: 1)
+        keywordTitleLabel.applyMankiTextStyle(.caption, color: ThemeManager.palette().text, numberOfLines: 1)
+        keywordTitleLabel.text = "Keywords from this song"
+        keywordScrollView.showsHorizontalScrollIndicator = false
+        keywordScrollView.alwaysBounceHorizontal = true
+        keywordStackView.axis = .horizontal
+        keywordStackView.spacing = AppSpacing.s(8)
+        keywordStackView.alignment = .fill
         lyricsTextView.isEditable = false
         lyricsTextView.isScrollEnabled = true
         lyricsTextView.textContainerInset = UIEdgeInsets(top: AppSpacing.s(16), left: AppSpacing.s(12), bottom: AppSpacing.s(16), right: AppSpacing.s(12))
+        lyricsTextView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+
+        [recommendationPlayButton, playlistSelectButton, playAllButton, previousButton, playPauseButton, nextButton].forEach {
+            $0.setContentCompressionResistancePriority(.required, for: .horizontal)
+            $0.setContentHuggingPriority(.required, for: .horizontal)
+            $0.titleLabel?.lineBreakMode = .byTruncatingTail
+        }
+        recommendationTitleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        recommendationArtistLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        nowPlayingTitleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        nowPlayingArtistLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        playlistHeaderSpacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        playlistControlsSpacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
 
         view.addSubview(scrollView)
         scrollView.addSubview(contentStack)
 
+        recommendationCard.addSubview(recommendationStack)
+        recommendationMediaStack.addArrangedSubview(recommendationArtworkView)
+        recommendationTextStack.addArrangedSubview(recommendationTitleLabel)
+        recommendationTextStack.addArrangedSubview(recommendationArtistLabel)
+        recommendationMediaStack.addArrangedSubview(recommendationTextStack)
+        recommendationStack.addArrangedSubview(recommendationMediaStack)
+        recommendationStack.addArrangedSubview(recommendationPlayButton)
+
+        playlistCard.addSubview(playlistStack)
+        playlistHeaderStack.addArrangedSubview(playlistTitleLabel)
+        playlistHeaderStack.addArrangedSubview(playlistHeaderSpacer)
+        playlistHeaderStack.addArrangedSubview(playlistSelectButton)
+        shuffleInfoStack.addArrangedSubview(shuffleLabel)
+        shuffleInfoStack.addArrangedSubview(shuffleSwitch)
+        playlistControlsStack.addArrangedSubview(shuffleInfoStack)
+        playlistControlsStack.addArrangedSubview(playlistControlsSpacer)
+        playlistControlsStack.addArrangedSubview(playAllButton)
+        playlistStack.addArrangedSubview(playlistHeaderStack)
+        playlistStack.addArrangedSubview(playlistNameLabel)
+        playlistStack.addArrangedSubview(playlistControlsStack)
+        playlistStack.addArrangedSubview(tracksTableView)
+
+        nowPlayingCard.addSubview(nowPlayingStack)
+        nowPlayingMediaStack.addArrangedSubview(nowPlayingArtworkView)
+        nowPlayingTextStack.addArrangedSubview(nowPlayingTitleLabel)
+        nowPlayingTextStack.addArrangedSubview(nowPlayingArtistLabel)
+        nowPlayingMediaStack.addArrangedSubview(nowPlayingTextStack)
+        nowPlayingStack.addArrangedSubview(nowPlayingMediaStack)
         playbackButtonsStack.addArrangedSubview(previousButton)
         playbackButtonsStack.addArrangedSubview(playPauseButton)
         playbackButtonsStack.addArrangedSubview(nextButton)
+        nowPlayingStack.addArrangedSubview(playbackButtonsStack)
+
+        lyricsCard.addSubview(lyricsStack)
+        keywordScrollView.addSubview(keywordStackView)
+        lyricsStack.addArrangedSubview(lyricsTitleLabel)
+        lyricsStack.addArrangedSubview(targetLevelLabel)
+        lyricsStack.addArrangedSubview(lyricsNoteLabel)
+        lyricsStack.addArrangedSubview(keywordTitleLabel)
+        lyricsStack.addArrangedSubview(keywordScrollView)
+        lyricsStack.addArrangedSubview(lyricsTextView)
 
         [statusLabel, authorizeButton, recommendationCard, playlistCard, nowPlayingCard, lyricsCard].forEach {
             contentStack.addArrangedSubview($0)
-        }
-
-        [recommendationArtworkView, recommendationTitleLabel, recommendationArtistLabel, recommendationPlayButton].forEach {
-            recommendationCard.addSubview($0)
-        }
-
-        [playlistTitleLabel, playlistSelectButton, playlistNameLabel, shuffleLabel, shuffleSwitch, playAllButton, tracksTableView].forEach {
-            playlistCard.addSubview($0)
-        }
-
-        [nowPlayingArtworkView, nowPlayingTitleLabel, nowPlayingArtistLabel, playbackButtonsStack].forEach {
-            nowPlayingCard.addSubview($0)
-        }
-
-        [lyricsTitleLabel, lyricsNoteLabel, lyricsTextView].forEach {
-            lyricsCard.addSubview($0)
         }
 
         NSLayoutConstraint.activate([
@@ -202,72 +340,69 @@ final class MusicKitPlayerViewController: BaseViewController {
             contentStack.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor, constant: -AppSpacing.s(24)),
             contentStack.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor, constant: -AppSpacing.s(32)),
 
-            recommendationArtworkView.topAnchor.constraint(equalTo: recommendationCard.topAnchor, constant: AppSpacing.s(16)),
-            recommendationArtworkView.leadingAnchor.constraint(equalTo: recommendationCard.leadingAnchor, constant: AppSpacing.s(16)),
-            recommendationArtworkView.widthAnchor.constraint(equalToConstant: 92),
-            recommendationArtworkView.heightAnchor.constraint(equalToConstant: 92),
-            recommendationTitleLabel.topAnchor.constraint(equalTo: recommendationArtworkView.topAnchor),
-            recommendationTitleLabel.leadingAnchor.constraint(equalTo: recommendationArtworkView.trailingAnchor, constant: AppSpacing.s(14)),
-            recommendationTitleLabel.trailingAnchor.constraint(equalTo: recommendationCard.trailingAnchor, constant: -AppSpacing.s(16)),
-            recommendationArtistLabel.topAnchor.constraint(equalTo: recommendationTitleLabel.bottomAnchor, constant: AppSpacing.s(8)),
-            recommendationArtistLabel.leadingAnchor.constraint(equalTo: recommendationTitleLabel.leadingAnchor),
-            recommendationArtistLabel.trailingAnchor.constraint(equalTo: recommendationTitleLabel.trailingAnchor),
-            recommendationPlayButton.topAnchor.constraint(equalTo: recommendationArtistLabel.bottomAnchor, constant: AppSpacing.s(10)),
-            recommendationPlayButton.leadingAnchor.constraint(equalTo: recommendationTitleLabel.leadingAnchor),
-            recommendationPlayButton.bottomAnchor.constraint(equalTo: recommendationCard.bottomAnchor, constant: -AppSpacing.s(16)),
+            recommendationStack.topAnchor.constraint(equalTo: recommendationCard.topAnchor),
+            recommendationStack.leadingAnchor.constraint(equalTo: recommendationCard.leadingAnchor),
+            recommendationStack.trailingAnchor.constraint(equalTo: recommendationCard.trailingAnchor),
+            recommendationStack.bottomAnchor.constraint(equalTo: recommendationCard.bottomAnchor),
 
-            playlistTitleLabel.topAnchor.constraint(equalTo: playlistCard.topAnchor, constant: AppSpacing.s(16)),
-            playlistTitleLabel.leadingAnchor.constraint(equalTo: playlistCard.leadingAnchor, constant: AppSpacing.s(16)),
-            playlistSelectButton.centerYAnchor.constraint(equalTo: playlistTitleLabel.centerYAnchor),
-            playlistSelectButton.trailingAnchor.constraint(equalTo: playlistCard.trailingAnchor, constant: -AppSpacing.s(16)),
-            playlistNameLabel.topAnchor.constraint(equalTo: playlistTitleLabel.bottomAnchor, constant: AppSpacing.s(10)),
-            playlistNameLabel.leadingAnchor.constraint(equalTo: playlistCard.leadingAnchor, constant: AppSpacing.s(16)),
-            playlistNameLabel.trailingAnchor.constraint(equalTo: playlistCard.trailingAnchor, constant: -AppSpacing.s(16)),
-            shuffleLabel.topAnchor.constraint(equalTo: playlistNameLabel.bottomAnchor, constant: AppSpacing.s(12)),
-            shuffleLabel.leadingAnchor.constraint(equalTo: playlistCard.leadingAnchor, constant: AppSpacing.s(16)),
-            shuffleSwitch.centerYAnchor.constraint(equalTo: shuffleLabel.centerYAnchor),
-            shuffleSwitch.leadingAnchor.constraint(equalTo: shuffleLabel.trailingAnchor, constant: AppSpacing.s(8)),
-            playAllButton.centerYAnchor.constraint(equalTo: shuffleLabel.centerYAnchor),
-            playAllButton.trailingAnchor.constraint(equalTo: playlistCard.trailingAnchor, constant: -AppSpacing.s(16)),
-            tracksTableView.topAnchor.constraint(equalTo: shuffleLabel.bottomAnchor, constant: AppSpacing.s(12)),
-            tracksTableView.leadingAnchor.constraint(equalTo: playlistCard.leadingAnchor, constant: AppSpacing.s(8)),
-            tracksTableView.trailingAnchor.constraint(equalTo: playlistCard.trailingAnchor, constant: -AppSpacing.s(8)),
-            tracksTableView.bottomAnchor.constraint(equalTo: playlistCard.bottomAnchor, constant: -AppSpacing.s(8)),
+            recommendationPlayButton.widthAnchor.constraint(lessThanOrEqualTo: recommendationStack.widthAnchor),
 
-            nowPlayingArtworkView.topAnchor.constraint(equalTo: nowPlayingCard.topAnchor, constant: AppSpacing.s(16)),
-            nowPlayingArtworkView.leadingAnchor.constraint(equalTo: nowPlayingCard.leadingAnchor, constant: AppSpacing.s(16)),
-            nowPlayingArtworkView.widthAnchor.constraint(equalToConstant: 72),
-            nowPlayingArtworkView.heightAnchor.constraint(equalToConstant: 72),
-            nowPlayingTitleLabel.topAnchor.constraint(equalTo: nowPlayingArtworkView.topAnchor),
-            nowPlayingTitleLabel.leadingAnchor.constraint(equalTo: nowPlayingArtworkView.trailingAnchor, constant: AppSpacing.s(14)),
-            nowPlayingTitleLabel.trailingAnchor.constraint(equalTo: nowPlayingCard.trailingAnchor, constant: -AppSpacing.s(16)),
-            nowPlayingArtistLabel.topAnchor.constraint(equalTo: nowPlayingTitleLabel.bottomAnchor, constant: AppSpacing.s(6)),
-            nowPlayingArtistLabel.leadingAnchor.constraint(equalTo: nowPlayingTitleLabel.leadingAnchor),
-            nowPlayingArtistLabel.trailingAnchor.constraint(equalTo: nowPlayingTitleLabel.trailingAnchor),
-            playbackButtonsStack.topAnchor.constraint(equalTo: nowPlayingArtworkView.bottomAnchor, constant: AppSpacing.s(14)),
-            playbackButtonsStack.leadingAnchor.constraint(equalTo: nowPlayingCard.leadingAnchor, constant: AppSpacing.s(16)),
-            playbackButtonsStack.trailingAnchor.constraint(equalTo: nowPlayingCard.trailingAnchor, constant: -AppSpacing.s(16)),
-            playbackButtonsStack.bottomAnchor.constraint(equalTo: nowPlayingCard.bottomAnchor, constant: -AppSpacing.s(16)),
+            playlistStack.topAnchor.constraint(equalTo: playlistCard.topAnchor),
+            playlistStack.leadingAnchor.constraint(equalTo: playlistCard.leadingAnchor),
+            playlistStack.trailingAnchor.constraint(equalTo: playlistCard.trailingAnchor),
+            playlistStack.bottomAnchor.constraint(equalTo: playlistCard.bottomAnchor),
 
-            lyricsTitleLabel.topAnchor.constraint(equalTo: lyricsCard.topAnchor, constant: AppSpacing.s(16)),
-            lyricsTitleLabel.leadingAnchor.constraint(equalTo: lyricsCard.leadingAnchor, constant: AppSpacing.s(16)),
-            lyricsTitleLabel.trailingAnchor.constraint(equalTo: lyricsCard.trailingAnchor, constant: -AppSpacing.s(16)),
-            lyricsNoteLabel.topAnchor.constraint(equalTo: lyricsTitleLabel.bottomAnchor, constant: AppSpacing.s(8)),
-            lyricsNoteLabel.leadingAnchor.constraint(equalTo: lyricsCard.leadingAnchor, constant: AppSpacing.s(16)),
-            lyricsNoteLabel.trailingAnchor.constraint(equalTo: lyricsCard.trailingAnchor, constant: -AppSpacing.s(16)),
-            lyricsTextView.topAnchor.constraint(equalTo: lyricsNoteLabel.bottomAnchor, constant: AppSpacing.s(10)),
-            lyricsTextView.leadingAnchor.constraint(equalTo: lyricsCard.leadingAnchor, constant: AppSpacing.s(16)),
-            lyricsTextView.trailingAnchor.constraint(equalTo: lyricsCard.trailingAnchor, constant: -AppSpacing.s(16)),
-            lyricsTextView.heightAnchor.constraint(equalToConstant: 320),
-            lyricsTextView.bottomAnchor.constraint(equalTo: lyricsCard.bottomAnchor, constant: -AppSpacing.s(16))
+            nowPlayingStack.topAnchor.constraint(equalTo: nowPlayingCard.topAnchor),
+            nowPlayingStack.leadingAnchor.constraint(equalTo: nowPlayingCard.leadingAnchor),
+            nowPlayingStack.trailingAnchor.constraint(equalTo: nowPlayingCard.trailingAnchor),
+            nowPlayingStack.bottomAnchor.constraint(equalTo: nowPlayingCard.bottomAnchor),
+
+            lyricsStack.topAnchor.constraint(equalTo: lyricsCard.topAnchor),
+            lyricsStack.leadingAnchor.constraint(equalTo: lyricsCard.leadingAnchor),
+            lyricsStack.trailingAnchor.constraint(equalTo: lyricsCard.trailingAnchor),
+            lyricsStack.bottomAnchor.constraint(equalTo: lyricsCard.bottomAnchor),
+
+            keywordStackView.topAnchor.constraint(equalTo: keywordScrollView.contentLayoutGuide.topAnchor),
+            keywordStackView.leadingAnchor.constraint(equalTo: keywordScrollView.contentLayoutGuide.leadingAnchor),
+            keywordStackView.trailingAnchor.constraint(equalTo: keywordScrollView.contentLayoutGuide.trailingAnchor),
+            keywordStackView.bottomAnchor.constraint(equalTo: keywordScrollView.contentLayoutGuide.bottomAnchor),
+            keywordStackView.heightAnchor.constraint(equalTo: keywordScrollView.frameLayoutGuide.heightAnchor)
         ])
+
+        recommendationArtworkWidthConstraint = recommendationArtworkView.widthAnchor.constraint(equalToConstant: 96)
+        recommendationArtworkHeightConstraint = recommendationArtworkView.heightAnchor.constraint(equalTo: recommendationArtworkView.widthAnchor)
+        nowPlayingArtworkWidthConstraint = nowPlayingArtworkView.widthAnchor.constraint(equalToConstant: 72)
+        nowPlayingArtworkHeightConstraint = nowPlayingArtworkView.heightAnchor.constraint(equalTo: nowPlayingArtworkView.widthAnchor)
+        keywordScrollHeightConstraint = keywordScrollView.heightAnchor.constraint(equalToConstant: 38)
+        lyricsHeightConstraint = lyricsTextView.heightAnchor.constraint(equalToConstant: 280)
+
+        NSLayoutConstraint.activate([
+            recommendationArtworkWidthConstraint,
+            recommendationArtworkHeightConstraint,
+            nowPlayingArtworkWidthConstraint,
+            nowPlayingArtworkHeightConstraint,
+            keywordScrollHeightConstraint,
+            lyricsHeightConstraint
+        ].compactMap { $0 })
 
         tracksTableHeightConstraint = tracksTableView.heightAnchor.constraint(equalToConstant: 88)
         tracksTableHeightConstraint?.isActive = true
+        updateResponsiveLayout()
     }
 
     private func bindState() {
         playbackController.onStateChange = { [weak self] in
+            self?.render()
+        }
+    }
+
+    private func observeGoalLevel() {
+        goalLevelObserver = NotificationCenter.default.addObserver(
+            forName: .englishGoalLevelDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.lastKeywordSignature = ""
             self?.render()
         }
     }
@@ -280,6 +415,7 @@ final class MusicKitPlayerViewController: BaseViewController {
     private func render() {
         statusLabel.text = playbackController.statusMessage
         authorizeButton.isHidden = playbackController.isAuthorized
+        targetLevelLabel.text = "Target: \(EnglishGoalLevelStore.current.displayName)"
 
         recommendationTitleLabel.text = playbackController.recommendedSong?.title ?? "Today's recommendation unavailable"
         recommendationArtistLabel.text = playbackController.recommendedSong?.artistName ?? "Connect Apple Music to fetch a recommended song."
@@ -300,7 +436,10 @@ final class MusicKitPlayerViewController: BaseViewController {
         nextButton.isEnabled = playbackController.canControlPlayback
         updateArtwork(playbackController.currentSong?.artwork?.url(width: 320, height: 320), into: nowPlayingArtworkView, task: &nowPlayingArtworkTask)
 
+        refreshExtractedKeywordsIfNeeded()
+        renderKeywords()
         renderLyrics()
+        updateResponsiveLayout()
     }
 
     private func renderLyrics() {
@@ -324,12 +463,17 @@ final class MusicKitPlayerViewController: BaseViewController {
 
         let activeIndex = playbackController.activeLyricLineIndex
         for (index, line) in playbackController.currentLyrics.enumerated() {
+            let lineRange = NSRange(location: attributed.length, length: (line.text as NSString).length)
+            let isSelectedLine = selectedKeyword?.sourceLine == line.text
             let attrs: [NSAttributedString.Key: Any] = [
                 .font: AppFont.jp(size: index == activeIndex ? 18 : 16, weight: index == activeIndex ? .bold : .regular),
                 .foregroundColor: index == activeIndex ? palette.text : palette.mutedText,
-                .backgroundColor: index == activeIndex ? palette.accent.withAlphaComponent(0.24) : UIColor.clear
+                .backgroundColor: isSelectedLine
+                    ? palette.accentStrong.withAlphaComponent(0.28)
+                    : (index == activeIndex ? palette.accent.withAlphaComponent(0.24) : UIColor.clear)
             ]
             attributed.append(NSAttributedString(string: line.text, attributes: attrs))
+            highlightKeywords(in: attributed, line: line.text, lineRange: lineRange, activeIndex: index == activeIndex, selectedLine: isSelectedLine)
             if index < playbackController.currentLyrics.count - 1 {
                 attributed.append(NSAttributedString(string: "\n\n", attributes: attrs))
             }
@@ -350,7 +494,127 @@ final class MusicKitPlayerViewController: BaseViewController {
 
     private func updateTracksTableHeight() {
         let rowCount = max(playbackController.playlistTracks.count, 1)
-        tracksTableHeightConstraint?.constant = CGFloat(min(rowCount, 5)) * 64
+        let compactRows = isCompactWidth ? 4 : 5
+        tracksTableHeightConstraint?.constant = CGFloat(min(rowCount, compactRows)) * 64
+    }
+
+    private func refreshExtractedKeywordsIfNeeded() {
+        let currentSongID = playbackController.currentSong?.id.rawValue ?? "none"
+        let signature = "\(currentSongID)|\(EnglishGoalLevelStore.current.rawValue)|\(playbackController.currentLyrics.map(\.text).joined(separator: "|"))"
+        guard signature != lastKeywordSignature else { return }
+        lastKeywordSignature = signature
+        extractedKeywords = Array(
+            LyricKeywordExtractor.extract(
+                from: playbackController.currentLyrics,
+                goalLevel: EnglishGoalLevelStore.current
+            ).prefix(10)
+        )
+        if let selectedKeyword, !extractedKeywords.contains(selectedKeyword) {
+            self.selectedKeyword = nil
+        }
+    }
+
+    private func renderKeywords() {
+        keywordButtons.forEach { button in
+            keywordStackView.removeArrangedSubview(button)
+            button.removeFromSuperview()
+        }
+        keywordButtons.removeAll()
+
+        guard !extractedKeywords.isEmpty else {
+            let emptyButton = FilterChipButton(frame: .zero)
+            emptyButton.apply(title: "No keywords yet", selected: false)
+            emptyButton.isEnabled = false
+            keywordStackView.addArrangedSubview(emptyButton)
+            keywordButtons = [emptyButton]
+            return
+        }
+
+        for keyword in extractedKeywords {
+            let button = FilterChipButton(frame: .zero)
+            button.apply(title: keyword.word, selected: keyword == selectedKeyword)
+            button.addAction(UIAction { [weak self] _ in
+                self?.handleKeywordTap(keyword)
+            }, for: .touchUpInside)
+            keywordStackView.addArrangedSubview(button)
+            keywordButtons.append(button)
+        }
+    }
+
+    private func handleKeywordTap(_ keyword: LyricKeyword) {
+        selectedKeyword = keyword
+        renderKeywords()
+        renderLyrics()
+        scrollToKeywordSourceLine(keyword)
+    }
+
+    private func scrollToKeywordSourceLine(_ keyword: LyricKeyword) {
+        guard let index = playbackController.currentLyrics.firstIndex(where: { $0.text == keyword.sourceLine || $0.text.localizedCaseInsensitiveContains(keyword.word) }) else {
+            return
+        }
+        let prefix = playbackController.currentLyrics.prefix(index).map(\.text).joined(separator: "\n\n")
+        let location = prefix.isEmpty ? 0 : (prefix as NSString).length + 2
+        let lineLength = (playbackController.currentLyrics[index].text as NSString).length
+        lyricsTextView.scrollRangeToVisible(NSRange(location: location, length: lineLength))
+    }
+
+    private func highlightKeywords(in attributed: NSMutableAttributedString, line: String, lineRange: NSRange, activeIndex: Bool, selectedLine: Bool) {
+        let palette = ThemeManager.palette()
+        let nsLine = line as NSString
+        let searchBase = line.lowercased()
+
+        for keyword in extractedKeywords where searchBase.contains(keyword.word.lowercased()) {
+            var searchRange = NSRange(location: 0, length: nsLine.length)
+            while true {
+                let found = nsLine.range(of: keyword.word, options: [.caseInsensitive], range: searchRange)
+                guard found.location != NSNotFound else { break }
+                let globalRange = NSRange(location: lineRange.location + found.location, length: found.length)
+                attributed.addAttributes([
+                    .font: AppFont.jp(size: activeIndex ? 18 : 16, weight: .bold),
+                    .backgroundColor: selectedLine
+                        ? palette.accentStrong.withAlphaComponent(0.38)
+                        : palette.accent.withAlphaComponent(0.18)
+                ], range: globalRange)
+                let nextLocation = found.location + found.length
+                guard nextLocation < nsLine.length else { break }
+                searchRange = NSRange(location: nextLocation, length: nsLine.length - nextLocation)
+            }
+        }
+    }
+
+    private var isCompactWidth: Bool {
+        view.bounds.width < 390
+    }
+
+    private func updateResponsiveLayout() {
+        let compact = isCompactWidth
+
+        recommendationMediaStack.axis = compact ? .vertical : .horizontal
+        recommendationMediaStack.alignment = compact ? .center : .top
+        recommendationTextStack.alignment = compact ? .center : .fill
+        recommendationTitleLabel.textAlignment = compact ? .center : .natural
+        recommendationArtistLabel.textAlignment = compact ? .center : .natural
+        recommendationPlayButton.contentHorizontalAlignment = compact ? .center : .center
+        recommendationArtworkWidthConstraint?.constant = compact ? 84 : 96
+
+        playlistHeaderStack.axis = compact ? .vertical : .horizontal
+        playlistHeaderStack.alignment = compact ? .fill : .center
+        playlistHeaderSpacer.isHidden = compact
+        playlistControlsStack.axis = compact ? .vertical : .horizontal
+        playlistControlsStack.alignment = compact ? .fill : .center
+        playlistControlsSpacer.isHidden = compact
+        shuffleInfoStack.alignment = .center
+
+        nowPlayingMediaStack.axis = compact ? .vertical : .horizontal
+        nowPlayingMediaStack.alignment = compact ? .center : .top
+        nowPlayingTextStack.alignment = compact ? .center : .fill
+        nowPlayingTitleLabel.textAlignment = compact ? .center : .natural
+        nowPlayingArtistLabel.textAlignment = compact ? .center : .natural
+        playbackButtonsStack.spacing = compact ? AppSpacing.s(8) : AppSpacing.s(10)
+        nowPlayingArtworkWidthConstraint?.constant = compact ? 64 : 72
+
+        lyricsHeightConstraint?.constant = min(max(view.bounds.height * (compact ? 0.28 : 0.32), 220), 320)
+        updateTracksTableHeight()
     }
 
     private func updateArtwork(_ url: URL?, into imageView: UIImageView, task: inout Task<Void, Never>?) {
@@ -637,7 +901,7 @@ final class MusicKitPlaybackController {
             var snapshots: [LibraryPlaylistSnapshot] = []
             for playlist in response.items {
                 let detailed = try await playlist.with([.tracks])
-                let songs = detailed.tracks?.compactMap { track in
+                let songs: [Song] = detailed.tracks?.compactMap { track in
                     if case .song(let song) = track {
                         return song
                     }

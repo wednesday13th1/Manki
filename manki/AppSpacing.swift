@@ -162,7 +162,7 @@ extension UIButton {
             bottom: AppSpacing.s(14),
             trailing: AppSpacing.s(16)
         )
-        if var configuration {
+        if #available(iOS 15.0, *), var configuration {
             configuration.contentInsets = insets
             self.configuration = configuration
         } else {

@@ -22,12 +22,15 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
     private let textSizeValueLabel = UILabel()
     private let readabilityTitleLabel = UILabel()
     private let readabilityValueLabel = UILabel()
+    private let goalTitleLabel = UILabel()
+    private let goalValueLabel = UILabel()
     private let themeStack = UIStackView()
     private let backgroundButton = UIButton(type: .system)
     private let opacitySlider = UISlider()
     private let tintSlider = UISlider()
     private let textSizeSegmented = UISegmentedControl(items: AppTextSize.allCases.map { $0.displayName })
     private let readabilitySlider = UISlider()
+    private let goalButton = UIButton(type: .system)
     private var themeButtons: [UIButton] = []
     private let cardView = UIView()
     private var themeObserver: NSObjectProtocol?
@@ -38,6 +41,7 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
     private let tintIconView = UIImageView()
     private let textSizeIconView = UIImageView()
     private let readabilityIconView = UIImageView()
+    private let goalIconView = UIImageView()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -91,6 +95,9 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
         readabilityTitleLabel.text = "見やすさ"
         readabilityTitleLabel.textAlignment = .left
         readabilityValueLabel.textAlignment = .right
+        goalTitleLabel.text = "目標レベル"
+        goalTitleLabel.textAlignment = .left
+        goalValueLabel.textAlignment = .right
 
         let icons = [
             (themeIconView, "paintpalette.fill"),
@@ -98,7 +105,8 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
             (opacityIconView, "sun.max.fill"),
             (tintIconView, "music.note"),
             (textSizeIconView, "textformat.size"),
-            (readabilityIconView, "bell.fill")
+            (readabilityIconView, "bell.fill"),
+            (goalIconView, "graduationcap.fill")
         ]
         icons.forEach { imageView, symbol in
             imageView.translatesAutoresizingMaskIntoConstraints = false
@@ -133,6 +141,10 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
         readabilitySlider.minimumValue = 0.0
         readabilitySlider.maximumValue = 0.55
         readabilitySlider.addTarget(self, action: #selector(readabilityChanged(_:)), for: .valueChanged)
+
+        goalButton.translatesAutoresizingMaskIntoConstraints = false
+        goalButton.setTitle("レベルを選ぶ", for: .normal)
+        goalButton.addTarget(self, action: #selector(openGoalMenu), for: .touchUpInside)
 
         themeButtons = AppTheme.allCases.enumerated().map { index, theme in
             let button = UIButton(type: .system)
@@ -176,6 +188,10 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
         cardView.addSubview(readabilityTitleLabel)
         cardView.addSubview(readabilityValueLabel)
         cardView.addSubview(readabilitySlider)
+        cardView.addSubview(goalIconView)
+        cardView.addSubview(goalTitleLabel)
+        cardView.addSubview(goalValueLabel)
+        cardView.addSubview(goalButton)
         themeTitleLabel.translatesAutoresizingMaskIntoConstraints = false
         backgroundTitleLabel.translatesAutoresizingMaskIntoConstraints = false
         opacityTitleLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -189,6 +205,9 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
         readabilityTitleLabel.translatesAutoresizingMaskIntoConstraints = false
         readabilityValueLabel.translatesAutoresizingMaskIntoConstraints = false
         readabilitySlider.translatesAutoresizingMaskIntoConstraints = false
+        goalTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        goalValueLabel.translatesAutoresizingMaskIntoConstraints = false
+        goalButton.translatesAutoresizingMaskIntoConstraints = false
 
         NSLayoutConstraint.activate([
             stack.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: AppSpacing.s(16)),
@@ -196,7 +215,7 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
             stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -AppSpacing.s(16)),
             stack.bottomAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -AppSpacing.s(16)),
 
-            cardView.bottomAnchor.constraint(equalTo: readabilitySlider.bottomAnchor, constant: AppSpacing.s(18)),
+            cardView.bottomAnchor.constraint(equalTo: goalButton.bottomAnchor, constant: AppSpacing.s(18)),
 
             themeIconView.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: AppSpacing.s(16)),
             themeIconView.centerYAnchor.constraint(equalTo: themeTitleLabel.centerYAnchor),
@@ -294,6 +313,24 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
             readabilitySlider.topAnchor.constraint(equalTo: readabilityTitleLabel.bottomAnchor, constant: AppSpacing.s(8)),
             readabilitySlider.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: AppSpacing.s(16)),
             readabilitySlider.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -AppSpacing.s(16)),
+
+            goalIconView.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: AppSpacing.s(16)),
+            goalIconView.centerYAnchor.constraint(equalTo: goalTitleLabel.centerYAnchor),
+            goalIconView.widthAnchor.constraint(equalToConstant: 18),
+            goalIconView.heightAnchor.constraint(equalToConstant: 18),
+
+            goalTitleLabel.topAnchor.constraint(equalTo: readabilitySlider.bottomAnchor, constant: AppSpacing.s(18)),
+            goalTitleLabel.leadingAnchor.constraint(equalTo: goalIconView.trailingAnchor, constant: AppSpacing.s(8)),
+            goalTitleLabel.trailingAnchor.constraint(lessThanOrEqualTo: goalValueLabel.leadingAnchor, constant: -AppSpacing.s(8)),
+
+            goalValueLabel.centerYAnchor.constraint(equalTo: goalTitleLabel.centerYAnchor),
+            goalValueLabel.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -AppSpacing.s(16)),
+            goalValueLabel.widthAnchor.constraint(equalToConstant: 120),
+
+            goalButton.topAnchor.constraint(equalTo: goalTitleLabel.bottomAnchor, constant: AppSpacing.s(8)),
+            goalButton.leadingAnchor.constraint(equalTo: cardView.leadingAnchor, constant: AppSpacing.s(16)),
+            goalButton.trailingAnchor.constraint(equalTo: cardView.trailingAnchor, constant: -AppSpacing.s(16)),
+            goalButton.heightAnchor.constraint(equalToConstant: 40),
         ])
     }
 
@@ -364,6 +401,22 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
         updateReadabilityValueLabel()
     }
 
+    @objc private func openGoalMenu() {
+        let alert = UIAlertController(title: "目標レベル", message: "学びたい英語レベルを選んでください。", preferredStyle: .actionSheet)
+        EnglishGoalLevel.allCases.forEach { level in
+            alert.addAction(UIAlertAction(title: level.displayName, style: .default) { [weak self] _ in
+                EnglishGoalLevelStore.current = level
+                self?.updateGoalValueLabel()
+            })
+        }
+        alert.addAction(UIAlertAction(title: "キャンセル", style: .cancel))
+        if let popover = alert.popoverPresentationController {
+            popover.sourceView = goalButton
+            popover.sourceRect = goalButton.bounds
+        }
+        present(alert, animated: true)
+    }
+
     @objc private func selectTheme(_ sender: UIButton) {
         let themes = AppTheme.allCases
         guard sender.tag >= 0, sender.tag < themes.count else { return }
@@ -422,7 +475,11 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
         readabilityTitleLabel.textColor = palette.text
         readabilityValueLabel.font = AppFont.en(size: 18)
         readabilityValueLabel.textColor = palette.text
-        [themeIconView, backgroundIconView, opacityIconView, tintIconView, textSizeIconView, readabilityIconView].forEach {
+        goalTitleLabel.font = AppFont.jp(size: 15, weight: .bold)
+        goalTitleLabel.textColor = palette.text
+        goalValueLabel.font = AppFont.en(size: 18)
+        goalValueLabel.textColor = palette.text
+        [themeIconView, backgroundIconView, opacityIconView, tintIconView, textSizeIconView, readabilityIconView, goalIconView].forEach {
             $0.tintColor = palette.accentStrong
         }
 
@@ -434,6 +491,8 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
         cardView.layer.shadowRadius = 12
         backgroundButton.titleLabel?.font = AppFont.jp(size: 14, weight: .bold)
         ThemeManager.styleSecondaryButton(backgroundButton)
+        goalButton.titleLabel?.font = AppFont.jp(size: 14, weight: .bold)
+        ThemeManager.styleSecondaryButton(goalButton)
         ThemeManager.styleSecondaryButton(closeButton)
         opacitySlider.minimumTrackTintColor = palette.accentStrong
         opacitySlider.maximumTrackTintColor = palette.surfaceAlt
@@ -462,6 +521,7 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
         updateTintValueLabel()
         updateTextSizeValueLabel()
         updateReadabilityValueLabel()
+        updateGoalValueLabel()
         updateBackgroundButtonTitle()
 
         for (index, button) in themeButtons.enumerated() {
@@ -494,6 +554,12 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate {
     private func updateReadabilityValueLabel() {
         let percent = Int(round(ThemeManager.readabilityOverlayAlpha / 0.55 * 100))
         readabilityValueLabel.text = "\(percent)%"
+    }
+
+    private func updateGoalValueLabel() {
+        let level = EnglishGoalLevelStore.current
+        goalValueLabel.text = level.displayName
+        goalButton.setTitle("現在: \(level.displayName)", for: .normal)
     }
 
     private func updateThemeSelection() {

@@ -62,7 +62,7 @@
         <!--Sti Cam View Controller-->
         <scene sceneID="RAv-ej-IW9">
             <objects>
-                <viewController storyboardIdentifier="StiCamViewController" id="tZ1-HX-bRy" customClass="StiCamViewController" customModule="manki" customModuleProvider="target" sceneMemberID="viewController">
+                <viewController storyboardIdentifier="StiCamViewController" restorationIdentifier="StiCamViewController" id="tZ1-HX-bRy" customClass="StiCamViewController" customModule="manki" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="JJx-8H-NDs">
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -77,7 +77,7 @@
         <!--Sti Collect View Controller-->
         <scene sceneID="FjA-6C-Pd5">
             <objects>
-                <viewController id="2ZL-Jm-ObO" customClass="StiCollectViewController" customModule="manki" customModuleProvider="target" sceneMemberID="viewController">
+                <viewController storyboardIdentifier="StiCollectViewController" restorationIdentifier="StiCollectViewController" id="2ZL-Jm-ObO" customClass="StiCollectViewController" customModule="manki" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="Rt6-V1-P7z">
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -92,7 +92,7 @@
         <!--Goal View Controller-->
         <scene sceneID="Zon-DB-MCM">
             <objects>
-                <viewController storyboardIdentifier="GoalViewController" id="Vbr-jZ-q4V" customClass="GoalViewController" customModule="manki" customModuleProvider="target" sceneMemberID="viewController">
+                <viewController storyboardIdentifier="GoalViewController" restorationIdentifier="GoalViewController" id="Vbr-jZ-q4V" customClass="GoalViewController" customModule="manki" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="R4W-lQ-Kxw">
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -107,7 +107,7 @@
         <!--Lucky View Controller-->
         <scene sceneID="p1p-VI-liB">
             <objects>
-                <viewController storyboardIdentifier="LuckyViewController" id="IbT-b9-M8D" customClass="LuckyViewController" customModule="manki" customModuleProvider="target" sceneMemberID="viewController">
+                <viewController storyboardIdentifier="LuckyViewController" restorationIdentifier="LuckyViewController" id="IbT-b9-M8D" customClass="LuckyViewController" customModule="manki" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="gej-TP-49Y">
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -122,7 +122,7 @@
         <!--Lucky Col View Controller-->
         <scene sceneID="aKI-9P-knS">
             <objects>
-                <viewController storyboardIdentifier="LuckyColViewController" id="igN-wC-4PD" customClass="LuckyColViewController" customModule="manki" customModuleProvider="target" sceneMemberID="viewController">
+                <viewController storyboardIdentifier="LuckyColViewController" restorationIdentifier="LuckyColViewController" id="igN-wC-4PD" customClass="LuckyColViewController" customModule="manki" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="ykL-kd-8Vb">
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -137,7 +137,7 @@
         <!--View Controller-->
         <scene sceneID="uSh-Ni-Tt3">
             <objects>
-                <viewController storyboardIdentifier="LegacyViewControllerA" id="847-FZ-OMR" sceneMemberID="viewController">
+                <viewController storyboardIdentifier="LegacyViewControllerA" restorationIdentifier="LegacyViewControllerA" id="847-FZ-OMR" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="PxI-cg-bYS">
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -228,7 +228,7 @@
         <!--View Controller-->
         <scene sceneID="xe5-Bm-2QW">
             <objects>
-                <viewController storyboardIdentifier="LegacyViewControllerB" id="t9u-BB-D5M" sceneMemberID="viewController">
+                <viewController storyboardIdentifier="LegacyViewControllerB" restorationIdentifier="LegacyViewControllerB" id="t9u-BB-D5M" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="Ji1-tL-SiC">
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -292,7 +292,7 @@
         <!--Set View Controller-->
         <scene sceneID="0jX-ja-p3u">
             <objects>
-                <viewController storyboardIdentifier="SetViewController" id="J2H-m9-Qd4" customClass="SetViewController" customModule="manki" customModuleProvider="target" sceneMemberID="viewController">
+                <viewController storyboardIdentifier="SetViewController" restorationIdentifier="SetViewController" id="J2H-m9-Qd4" customClass="SetViewController" customModule="manki" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="vJJ-VD-Qwe">
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
