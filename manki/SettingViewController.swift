@@ -38,6 +38,8 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate, U
     private let readabilityValueLabel = UILabel()
     private let goalTitleLabel = UILabel()
     private let themeStack = UIStackView()
+    private let scrollView = UIScrollView()
+    private let contentView = UIView()
     private let backgroundButton = UIButton(type: .system)
     private let opacitySlider = UISlider()
     private let tintSlider = UISlider()
@@ -70,6 +72,18 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate, U
         ) { [weak self] _ in
             self?.applyTheme()
         }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillChangeFrame(_:)),
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(keyboardWillHide(_:)),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -178,12 +192,20 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate, U
         cardView.layer.cornerRadius = 24
         cardView.layer.borderWidth = 1.5
 
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.alwaysBounceVertical = true
+        scrollView.keyboardDismissMode = .interactive
+
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+
         let stack = UIStackView(arrangedSubviews: [titleLabel, subtitleLabel, cardView])
         stack.axis = .vertical
         stack.spacing = AppSpacing.s(12)
         stack.translatesAutoresizingMaskIntoConstraints = false
 
-        view.addSubview(stack)
+        view.addSubview(scrollView)
+        scrollView.addSubview(contentView)
+        contentView.addSubview(stack)
         cardView.addSubview(themeIconView)
         cardView.addSubview(themeTitleLabel)
         cardView.addSubview(themeStack)
@@ -230,10 +252,21 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate, U
         view.addGestureRecognizer(keyboardDismissTap)
 
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: AppSpacing.s(16)),
-            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: AppSpacing.s(16)),
-            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -AppSpacing.s(16)),
-            stack.bottomAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -AppSpacing.s(16)),
+            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            contentView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
+            contentView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
+            contentView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
+            contentView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
+            contentView.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor),
+
+            stack.topAnchor.constraint(equalTo: contentView.topAnchor, constant: AppSpacing.s(16)),
+            stack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: AppSpacing.s(16)),
+            stack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -AppSpacing.s(16)),
+            stack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -AppSpacing.s(16)),
 
             cardView.bottomAnchor.constraint(equalTo: goalTextField.bottomAnchor, constant: AppSpacing.s(18)),
 
@@ -590,10 +623,38 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate, U
         EnglishGoalLevelStore.currentText = goalTextField.text ?? ""
     }
 
+    @objc private func keyboardWillChangeFrame(_ notification: Notification) {
+        guard let userInfo = notification.userInfo,
+              let keyboardFrameValue = userInfo[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue else {
+            return
+        }
+
+        let keyboardFrame = view.convert(keyboardFrameValue.cgRectValue, from: view.window)
+        let coveredHeight = max(0, view.bounds.maxY - keyboardFrame.minY)
+        let bottomInset = coveredHeight + AppSpacing.s(12)
+        scrollView.contentInset.bottom = bottomInset
+        scrollView.verticalScrollIndicatorInsets.bottom = bottomInset
+
+        if goalTextField.isFirstResponder {
+            let fieldFrame = goalTextField.convert(goalTextField.bounds, to: scrollView)
+            scrollView.scrollRectToVisible(fieldFrame.insetBy(dx: 0, dy: -AppSpacing.s(24)), animated: true)
+        }
+    }
+
+    @objc private func keyboardWillHide(_ notification: Notification) {
+        scrollView.contentInset.bottom = 0
+        scrollView.verticalScrollIndicatorInsets.bottom = 0
+    }
+
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         persistGoalTextIfNeeded()
         textField.resignFirstResponder()
         return true
+    }
+
+    func textFieldDidBeginEditing(_ textField: UITextField) {
+        let fieldFrame = textField.convert(textField.bounds, to: scrollView)
+        scrollView.scrollRectToVisible(fieldFrame.insetBy(dx: 0, dy: -AppSpacing.s(24)), animated: true)
     }
 
     private func updateThemeSelection() {
@@ -625,6 +686,7 @@ class SettingViewController: UIViewController, PHPickerViewControllerDelegate, U
         if let observer = themeObserver {
             NotificationCenter.default.removeObserver(observer)
         }
+        NotificationCenter.default.removeObserver(self)
     }
 
     /*

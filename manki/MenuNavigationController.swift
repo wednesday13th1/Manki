@@ -1,6 +1,8 @@
 import UIKit
 
 final class MenuNavigationController: UINavigationController, UIGestureRecognizerDelegate {
+    private static let topButtonSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 20, weight: .bold)
+
     private lazy var edgePan: UIScreenEdgePanGestureRecognizer = {
         let recognizer = UIScreenEdgePanGestureRecognizer(target: self, action: #selector(handleEdgePan(_:)))
         recognizer.edges = .left
@@ -11,7 +13,11 @@ final class MenuNavigationController: UINavigationController, UIGestureRecognize
     private lazy var floatingMenuButton: UIButton = {
         let button = UIButton(type: .system)
         button.translatesAutoresizingMaskIntoConstraints = false
-        button.setImage(UIImage(systemName: "line.3.horizontal"), for: .normal)
+        let image = UIImage(systemName: "line.3.horizontal", withConfiguration: Self.topButtonSymbolConfiguration)?
+            .withRenderingMode(.alwaysTemplate)
+        button.setImage(image, for: .normal)
+        button.imageView?.contentMode = .scaleAspectFit
+        button.imageView?.isHidden = false
         button.accessibilityLabel = "メニュー"
         button.addTarget(self, action: #selector(openMenu), for: .touchUpInside)
         button.layer.cornerRadius = 0
@@ -57,7 +63,8 @@ final class MenuNavigationController: UINavigationController, UIGestureRecognize
         }
 
         let button = UIBarButtonItem(
-            image: UIImage(systemName: "line.3.horizontal"),
+            image: UIImage(systemName: "line.3.horizontal", withConfiguration: Self.topButtonSymbolConfiguration)?
+                .withRenderingMode(.alwaysTemplate),
             style: .plain,
             target: self,
             action: #selector(openMenu)
@@ -116,7 +123,7 @@ final class MenuNavigationController: UINavigationController, UIGestureRecognize
             return SideMenuItem(
                 route: route,
                 title: route.title,
-                icon: route.menuIcon(tintColor: ThemeManager.palette().text),
+                icon: (UIImage(systemName: route.systemImageName) ?? UIImage(systemName: "circle.fill"))?.withRenderingMode(.alwaysTemplate),
                 isSelected: currentRoute == route
             ) { [weak self] in
                 guard let self else { return }

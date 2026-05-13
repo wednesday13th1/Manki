@@ -87,6 +87,11 @@ final class SetViewController: UIViewController, UITableViewDataSource, UITableV
     private var wordMenuTitleLabel: UILabel?
     private var wordMenuButtons: [UIButton] = []
 
+    private enum RetroNavTag {
+        static let icon = 4101
+        static let label = 4102
+    }
+
     init(folderID: String?, showsAll: Bool = false) {
         self.folderID = folderID
         self.showsAll = showsAll
@@ -430,22 +435,14 @@ final class SetViewController: UIViewController, UITableViewDataSource, UITableV
         retroKeypadRowBottom.distribution = .fillEqually
 
         retroKeyButtons = [retroFolderButton, retroWordButton, retroSortButton, retroAddButton]
-        let configButtons: [(UIButton, String)] = [
-            (retroFolderButton, "追加"),
-            (retroWordButton, "共有"),
-            (retroSortButton, "並び替え"),
-            (retroAddButton, "学習")
+        let configButtons: [(UIButton, String, String)] = [
+            (retroFolderButton, "セット", "folder.fill"),
+            (retroWordButton, "共有", "square.and.arrow.up"),
+            (retroSortButton, "並替", "arrow.up.arrow.down"),
+            (retroAddButton, "学習", "checkmark.circle.fill")
         ]
-        configButtons.forEach { button, title in
-            button.translatesAutoresizingMaskIntoConstraints = false
-            button.layer.borderWidth = 1
-            button.setTitle(title, for: .normal)
-            button.titleLabel?.font = AppFont.jp(size: 18, weight: .bold)
-            button.titleLabel?.adjustsFontSizeToFitWidth = true
-            button.titleLabel?.minimumScaleFactor = 0.78
-            var configuration = UIButton.Configuration.plain()
-            configuration.contentInsets = NSDirectionalEdgeInsets(top: 16, leading: 18, bottom: 16, trailing: 18)
-            button.configuration = configuration
+        configButtons.forEach { button, title, symbolName in
+            configureRetroNavButton(button, title: title, symbolName: symbolName)
         }
         retroFolderButton.setContentHuggingPriority(.defaultLow, for: .horizontal)
         retroWordButton.setContentHuggingPriority(.required, for: .horizontal)
@@ -609,6 +606,98 @@ final class SetViewController: UIViewController, UITableViewDataSource, UITableV
         retroAddButton.addTarget(self, action: #selector(openWhichView), for: .touchUpInside)
         retroClickWheelFolderButton.addTarget(self, action: #selector(openFolderView), for: .touchUpInside)
         retroClickWheelWordButton.addTarget(self, action: #selector(openWordMenuFromClickWheel), for: .touchUpInside)
+    }
+
+    private func configureRetroNavButton(_ button: UIButton, title: String, symbolName: String) {
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.configuration = nil
+        button.setTitle(nil, for: .normal)
+        button.setImage(nil, for: .normal)
+        button.accessibilityLabel = title
+        button.clipsToBounds = false
+        button.layer.cornerRadius = 28
+        button.layer.borderWidth = 3
+
+        let iconView = UIImageView()
+        iconView.tag = RetroNavTag.icon
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        iconView.contentMode = .scaleAspectFit
+        iconView.image = UIImage(
+            systemName: symbolName,
+            withConfiguration: UIImage.SymbolConfiguration(pointSize: 23, weight: .bold)
+        )?.withRenderingMode(.alwaysTemplate)
+
+        let titleLabel = UILabel()
+        titleLabel.tag = RetroNavTag.label
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        titleLabel.text = title
+        titleLabel.textAlignment = .center
+        titleLabel.numberOfLines = 1
+        titleLabel.adjustsFontSizeToFitWidth = true
+        titleLabel.minimumScaleFactor = 0.72
+
+        let stack = UIStackView(arrangedSubviews: [iconView, titleLabel])
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.axis = .vertical
+        stack.alignment = .center
+        stack.spacing = AppSpacing.s(7)
+        stack.isUserInteractionEnabled = false
+
+        button.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.centerXAnchor.constraint(equalTo: button.centerXAnchor),
+            stack.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+            stack.leadingAnchor.constraint(greaterThanOrEqualTo: button.leadingAnchor, constant: AppSpacing.s(8)),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: button.trailingAnchor, constant: -AppSpacing.s(8)),
+            stack.topAnchor.constraint(greaterThanOrEqualTo: button.topAnchor, constant: AppSpacing.s(8)),
+            stack.bottomAnchor.constraint(lessThanOrEqualTo: button.bottomAnchor, constant: -AppSpacing.s(8)),
+            iconView.widthAnchor.constraint(equalToConstant: 24),
+            iconView.heightAnchor.constraint(equalToConstant: 24)
+        ])
+
+        button.addTarget(self, action: #selector(retroNavButtonTouchDown(_:)), for: [.touchDown, .touchDragEnter])
+        button.addTarget(self, action: #selector(retroNavButtonTouchUp(_:)), for: [.touchUpInside, .touchUpOutside, .touchCancel, .touchDragExit])
+    }
+
+    private func styleRetroNavButton(_ button: UIButton, selected: Bool = false) {
+        let palette = ThemeManager.palette()
+        let fillColor = selected ? palette.accent.withAlphaComponent(0.72) : palette.surfaceAlt.withAlphaComponent(0.96)
+        let contentColor = palette.text
+
+        button.backgroundColor = fillColor
+        button.tintColor = contentColor
+        button.layer.cornerRadius = 28
+        button.layer.borderWidth = 3
+        button.layer.borderColor = palette.border.cgColor
+        button.layer.shadowColor = palette.border.cgColor
+        button.layer.shadowOpacity = selected ? 0.22 : 0.15
+        button.layer.shadowOffset = CGSize(width: 0, height: 4)
+        button.layer.shadowRadius = 0
+
+        if let iconView = button.viewWithTag(RetroNavTag.icon) as? UIImageView {
+            iconView.tintColor = contentColor
+            iconView.isHidden = false
+        }
+        if let titleLabel = button.viewWithTag(RetroNavTag.label) as? UILabel {
+            titleLabel.font = AppFont.jp(size: 12, weight: .bold)
+            titleLabel.textColor = contentColor
+        }
+    }
+
+    @objc private func retroNavButtonTouchDown(_ sender: UIButton) {
+        UIView.animate(withDuration: 0.08, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction]) {
+            sender.transform = CGAffineTransform(scaleX: 0.95, y: 0.95).translatedBy(x: 0, y: 2)
+            sender.layer.shadowOffset = CGSize(width: 0, height: 1)
+            sender.layer.shadowOpacity = 0.1
+        }
+    }
+
+    @objc private func retroNavButtonTouchUp(_ sender: UIButton) {
+        UIView.animate(withDuration: 0.1, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction]) {
+            sender.transform = .identity
+            sender.layer.shadowOffset = CGSize(width: 0, height: 4)
+            sender.layer.shadowOpacity = 0.15
+        }
     }
 
     private func configureThemeHeader() {
@@ -1070,9 +1159,10 @@ final class SetViewController: UIViewController, UITableViewDataSource, UITableV
         retroKeypadView.layer.borderWidth = 2
         retroKeypadView.layer.borderColor = palette.border.cgColor
 
-        retroKeyButtons.forEach { key in
-            ThemeManager.stylePixelOutlineButton(key)
-        }
+        styleRetroNavButton(retroFolderButton)
+        styleRetroNavButton(retroWordButton)
+        styleRetroNavButton(retroSortButton)
+        styleRetroNavButton(retroAddButton, selected: true)
 
         retroBadgeLabel.font = AppFont.title(size: 9)
         retroBadgeLabel.textColor = palette.text
@@ -1081,8 +1171,6 @@ final class SetViewController: UIViewController, UITableViewDataSource, UITableV
         retroBadgeLabel.layer.borderWidth = 1
         retroBadgeLabel.layer.borderColor = palette.border.cgColor
         retroBadgeLabel.clipsToBounds = true
-
-        ThemeManager.stylePixelOutlineButton(retroAddButton)
 
         themeHeader.backgroundColor = palette.surface
         themeHeader.layer.cornerRadius = 16

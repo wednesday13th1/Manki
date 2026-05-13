@@ -131,39 +131,25 @@ final class SideMenuViewController: UIViewController {
     private func updateMenuItems() {
         menuStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         items.enumerated().forEach { index, item in
-            let button = UIButton(type: .system)
+            let button = SideMenuRowButton()
             button.tag = index
-            var configuration = UIButton.Configuration.plain()
-            configuration.contentInsets = NSDirectionalEdgeInsets(
-                top: AppSpacing.s(14),
-                leading: AppSpacing.s(18),
-                bottom: AppSpacing.s(14),
-                trailing: AppSpacing.s(18)
+            button.itemIndex = index
+            button.configure(
+                title: item.title,
+                icon: item.icon,
+                route: item.route
             )
-            configuration.imagePlacement = .leading
-            configuration.imagePadding = AppSpacing.s(12)
-            configuration.titleAlignment = .leading
-            button.configuration = configuration
-            button.contentHorizontalAlignment = .leading
-            button.titleLabel?.font = FontManager.font(.button, size: 16, weight: .bold)
-            button.titleLabel?.numberOfLines = 2
-            button.titleLabel?.adjustsFontSizeToFitWidth = true
-            button.titleLabel?.minimumScaleFactor = 0.82
-            button.setTitle(item.title, for: .normal)
             button.tintColor = ThemeManager.palette().text
-            if let icon = item.icon {
-                UIView.performWithoutAnimation {
-                    button.setImage(icon, for: .normal)
-                    button.layoutIfNeeded()
-                }
-            }
-            button.imageView?.contentMode = .scaleAspectFit
             button.layer.cornerRadius = 18
             button.layer.borderWidth = item.isSelected ? 2 : 1.5
             button.addTarget(self, action: #selector(handleItemTap(_:)), for: .touchUpInside)
+            button.onHighlightChanged = { [weak self, weak button] in
+                guard let self, let button else { return }
+                self.updateRowAppearance(button)
+            }
             menuStack.addArrangedSubview(button)
 
-            let height = button.heightAnchor.constraint(equalToConstant: AppSpacing.s(56))
+            let height = button.heightAnchor.constraint(greaterThanOrEqualToConstant: AppSpacing.s(56))
             height.priority = .required
             height.isActive = true
         }
@@ -181,40 +167,41 @@ final class SideMenuViewController: UIViewController {
         subtitleLabel.font = AppFont.en(size: 18)
 
         menuStack.arrangedSubviews.forEach { view in
-            guard let button = view as? UIButton else { return }
+            guard let button = view as? SideMenuRowButton else { return }
             let item = items[button.tag]
-            button.setTitleColor(palette.text, for: .normal)
-            button.configurationUpdateHandler = { [weak self] button in
-                guard let self else { return }
-                let currentPalette = ThemeManager.palette()
-                let currentItem = self.items[button.tag]
-                let isPressed = button.isHighlighted
-                let normalColor = currentItem.isSelected ? currentPalette.accent : currentPalette.surfaceAlt.withAlphaComponent(0.92)
-                let pressedColor = currentItem.isSelected ? currentPalette.accentStrong : currentPalette.surface
-                button.backgroundColor = isPressed ? pressedColor : normalColor
-                button.layer.shadowColor = currentPalette.border.cgColor
-                button.layer.shadowRadius = 0
-                button.layer.shadowOpacity = currentItem.isSelected ? 0.16 : 0.1
-                button.layer.shadowOffset = isPressed ? CGSize(width: 0, height: 1) : CGSize(width: 0, height: 4)
-                button.transform = isPressed ? CGAffineTransform(translationX: 0, y: 3) : .identity
-            }
-            let icon = item.route.menuIcon(tintColor: palette.text)
-            UIView.performWithoutAnimation {
-                button.setImage(icon, for: .normal)
-                button.layoutIfNeeded()
-            }
-            button.backgroundColor = item.isSelected ? palette.accent : palette.surfaceAlt.withAlphaComponent(0.92)
+            button.menuTitleLabel.font = UIFontMetrics(forTextStyle: .body).scaledFont(
+                for: FontManager.font(.button, size: 16, weight: .bold)
+            )
+            button.menuTitleLabel.textColor = palette.text
+            button.iconView.isHidden = false
+            button.iconView.alpha = 1
+            button.iconView.tintColor = palette.accentStrong
             button.layer.borderColor = palette.border.cgColor
             button.layer.borderWidth = item.isSelected ? 2 : 1.5
+            button.accessibilityTraits = item.isSelected ? [.button, .selected] : [.button]
+            updateRowAppearance(button, animated: false)
+        }
+    }
+
+    private func updateRowAppearance(_ button: SideMenuRowButton, animated: Bool = true) {
+        guard button.tag >= 0, button.tag < items.count else { return }
+        let palette = ThemeManager.palette()
+        let item = items[button.tag]
+        let normalColor = item.isSelected ? palette.accent.withAlphaComponent(0.45) : palette.surfaceAlt.withAlphaComponent(0.92)
+        let pressedColor = item.isSelected ? palette.accent.withAlphaComponent(0.65) : palette.surface
+        let updates = {
+            button.backgroundColor = button.isHighlighted ? pressedColor : normalColor
             button.layer.shadowColor = palette.border.cgColor
             button.layer.shadowOpacity = item.isSelected ? 0.16 : 0.1
-            button.layer.shadowOffset = CGSize(width: 0, height: 4)
+            button.layer.shadowOffset = button.isHighlighted ? CGSize(width: 0, height: 1) : CGSize(width: 0, height: 4)
             button.layer.shadowRadius = 0
-            button.accessibilityTraits = item.isSelected ? [.button, .selected] : [.button]
-            UIView.performWithoutAnimation {
-                button.setNeedsUpdateConfiguration()
-                button.layoutIfNeeded()
-            }
+            button.transform = button.isHighlighted ? CGAffineTransform(translationX: 0, y: 3) : .identity
+        }
+
+        if animated {
+            UIView.animate(withDuration: 0.08, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction], animations: updates)
+        } else {
+            updates()
         }
     }
 
@@ -260,7 +247,7 @@ final class SideMenuViewController: UIViewController {
         }
     }
 
-    @objc private func handleItemTap(_ sender: UIButton) {
+    @objc private func handleItemTap(_ sender: UIControl) {
         guard sender.tag >= 0, sender.tag < items.count else { return }
         let action = items[sender.tag].action
         animateOut { [weak self] in
@@ -269,5 +256,102 @@ final class SideMenuViewController: UIViewController {
                 action()
             }
         }
+    }
+}
+
+private final class SideMenuRowButton: UIControl {
+    let iconView = UIImageView()
+    let menuTitleLabel = UILabel()
+    private let iconContainer = UIView()
+    private let rowStack = UIStackView()
+    var itemIndex = 0
+    var onHighlightChanged: (() -> Void)?
+
+    override var isHighlighted: Bool {
+        didSet {
+            onHighlightChanged?()
+        }
+    }
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        setup()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        bringSubviewToFront(rowStack)
+        iconContainer.bringSubviewToFront(iconView)
+    }
+
+    func configure(title: String, icon: UIImage?, route: AppRoute) {
+        menuTitleLabel.text = title
+        let configuration = UIImage.SymbolConfiguration(pointSize: 24, weight: .semibold, scale: .medium)
+        let resolvedIcon = icon
+            ?? UIImage(systemName: route.systemImageName, withConfiguration: configuration)
+            ?? UIImage(systemName: "circle.fill", withConfiguration: configuration)
+        iconView.image = resolvedIcon?.withRenderingMode(.alwaysTemplate)
+        iconView.isHidden = false
+        iconView.alpha = 1
+        iconView.tintColor = ThemeManager.palette().accentStrong
+        accessibilityLabel = title
+    }
+
+    private func setup() {
+        translatesAutoresizingMaskIntoConstraints = false
+        isAccessibilityElement = true
+        accessibilityTraits = .button
+
+        iconContainer.translatesAutoresizingMaskIntoConstraints = false
+        iconContainer.isUserInteractionEnabled = false
+        iconContainer.backgroundColor = .clear
+        iconContainer.setContentHuggingPriority(.required, for: .horizontal)
+        iconContainer.setContentCompressionResistancePriority(.required, for: .horizontal)
+
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        iconView.contentMode = .scaleAspectFit
+        iconView.isHidden = false
+        iconView.tintColor = ThemeManager.palette().accentStrong
+        iconView.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 24, weight: .semibold)
+        iconView.layer.zPosition = 2
+        iconView.setContentHuggingPriority(.required, for: .horizontal)
+        iconView.setContentCompressionResistancePriority(.required, for: .horizontal)
+
+        menuTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        menuTitleLabel.numberOfLines = 2
+        menuTitleLabel.adjustsFontForContentSizeCategory = true
+        menuTitleLabel.adjustsFontSizeToFitWidth = true
+        menuTitleLabel.minimumScaleFactor = 0.82
+        menuTitleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        rowStack.translatesAutoresizingMaskIntoConstraints = false
+        rowStack.axis = .horizontal
+        rowStack.alignment = .center
+        rowStack.spacing = AppSpacing.s(12)
+        rowStack.distribution = .fill
+        rowStack.isUserInteractionEnabled = false
+        rowStack.layer.zPosition = 1
+        iconContainer.addSubview(iconView)
+        rowStack.addArrangedSubview(iconContainer)
+        rowStack.addArrangedSubview(menuTitleLabel)
+
+        addSubview(rowStack)
+
+        NSLayoutConstraint.activate([
+            rowStack.topAnchor.constraint(equalTo: topAnchor, constant: AppSpacing.s(12)),
+            rowStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: AppSpacing.s(18)),
+            rowStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -AppSpacing.s(18)),
+            rowStack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -AppSpacing.s(12)),
+            iconContainer.widthAnchor.constraint(equalToConstant: 30),
+            iconContainer.heightAnchor.constraint(equalToConstant: 30),
+            iconView.centerXAnchor.constraint(equalTo: iconContainer.centerXAnchor),
+            iconView.centerYAnchor.constraint(equalTo: iconContainer.centerYAnchor),
+            iconView.widthAnchor.constraint(equalToConstant: 24),
+            iconView.heightAnchor.constraint(equalToConstant: 24)
+        ])
     }
 }

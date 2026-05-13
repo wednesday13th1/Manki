@@ -31,7 +31,7 @@ enum AppRoute: CaseIterable {
         switch self {
         case .home: return "house.fill"
         case .music: return "music.note"
-        case .sets: return "rectangle.stack.fill"
+        case .sets: return "folder.fill"
         case .test: return "checkmark.circle.fill"
         case .record: return "calendar"
         case .settings: return "gearshape.fill"
@@ -139,19 +139,19 @@ enum AppRouter {
 
 extension AppRoute {
     private static let menuSymbolConfiguration = UIImage.SymbolConfiguration(
-        pointSize: 18,
+        pointSize: 22,
         weight: .semibold,
         scale: .medium
     )
     private static var iconCache: [String: UIImage] = [:]
 
-    func menuIcon(tintColor: UIColor) -> UIImage? {
-        let cacheKey = "\(systemImageName)-\(tintColor.description)"
+    func menuIcon(tintColor _: UIColor) -> UIImage? {
+        let cacheKey = systemImageName
         if let cached = AppRoute.iconCache[cacheKey] {
             return cached
         }
         let icon = UIImage(systemName: systemImageName, withConfiguration: AppRoute.menuSymbolConfiguration)?
-            .withTintColor(tintColor, renderingMode: .alwaysOriginal)
+            .withRenderingMode(.alwaysTemplate)
         if let icon {
             AppRoute.iconCache[cacheKey] = icon
         }

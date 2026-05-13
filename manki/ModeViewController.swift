@@ -72,13 +72,23 @@ final class ModeViewController: UIViewController {
         startButton.setTitle("学習セットを開く", for: .normal)
         startButton.addTarget(self, action: #selector(openStudy), for: .touchUpInside)
 
+        let topButtonSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 20, weight: .bold)
+
         menuButton.translatesAutoresizingMaskIntoConstraints = false
-        menuButton.setImage(UIImage(systemName: "line.3.horizontal"), for: .normal)
+        let menuIcon = UIImage(systemName: "line.3.horizontal", withConfiguration: topButtonSymbolConfiguration)?
+            .withRenderingMode(.alwaysTemplate)
+        menuButton.setImage(menuIcon, for: .normal)
+        menuButton.imageView?.contentMode = .scaleAspectFit
+        menuButton.imageView?.isHidden = false
         menuButton.accessibilityLabel = "メニュー"
         menuButton.addTarget(self, action: #selector(openSideMenu), for: .touchUpInside)
 
         settingsButton.translatesAutoresizingMaskIntoConstraints = false
-        settingsButton.setImage(UIImage(systemName: "gearshape.fill"), for: .normal)
+        let settingsIcon = UIImage(systemName: "gearshape.fill", withConfiguration: topButtonSymbolConfiguration)?
+            .withRenderingMode(.alwaysTemplate)
+        settingsButton.setImage(settingsIcon, for: .normal)
+        settingsButton.imageView?.contentMode = .scaleAspectFit
+        settingsButton.imageView?.isHidden = false
         settingsButton.accessibilityLabel = "設定"
         settingsButton.addTarget(self, action: #selector(openSettings), for: .touchUpInside)
 
@@ -158,7 +168,7 @@ final class ModeViewController: UIViewController {
             return SideMenuItem(
                 route: route,
                 title: route.title,
-                icon: route.menuIcon(tintColor: ThemeManager.palette().text),
+                icon: homeSideMenuIcon(for: route),
                 isSelected: route == .home
             ) { [weak self] in
                 self?.open(routeFromHome: route)
@@ -170,6 +180,33 @@ final class ModeViewController: UIViewController {
         }
         sideMenu = menu
         menu.present(in: self)
+    }
+
+    private func homeSideMenuIcon(for route: AppRoute) -> UIImage? {
+        let symbolName: String
+        switch route {
+        case .home:
+            symbolName = "house.fill"
+        case .folder, .sets:
+            symbolName = "folder.fill"
+        case .music:
+            symbolName = "music.note"
+        case .settings:
+            symbolName = "gearshape.fill"
+        case .record:
+            symbolName = "calendar"
+        case .test:
+            symbolName = "checkmark.circle.fill"
+        case .playlists:
+            symbolName = "music.note.list"
+        case .flip:
+            symbolName = "arrow.triangle.2.circlepath"
+        }
+
+        let configuration = UIImage.SymbolConfiguration(pointSize: 24, weight: .semibold, scale: .medium)
+        return (UIImage(systemName: symbolName, withConfiguration: configuration)
+            ?? UIImage(systemName: "circle.fill", withConfiguration: configuration))?
+            .withRenderingMode(.alwaysTemplate)
     }
 
     private func open(routeFromHome route: AppRoute) {

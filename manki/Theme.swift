@@ -461,10 +461,14 @@ enum ThemeManager {
         let palette = palette()
         let normalBackground = palette.surface.withAlphaComponent(0.96)
         let highlightedBackground = palette.accent.withAlphaComponent(0.9)
+        let iconColor = UIColor(red: 0.16, green: 0.10, blue: 0.09, alpha: 1)
+        let symbolConfiguration = UIImage.SymbolConfiguration(pointSize: 20, weight: .bold)
+        let currentImage = button.image(for: .normal)?.withConfiguration(symbolConfiguration).withRenderingMode(.alwaysTemplate)
         button.configurationUpdateHandler = { button in
             let isPressed = button.isHighlighted
             button.backgroundColor = isPressed ? highlightedBackground : normalBackground
-            button.tintColor = palette.text
+            button.tintColor = iconColor
+            button.imageView?.isHidden = false
             applyRetroButtonPressState(
                 button,
                 isPressed: isPressed,
@@ -472,12 +476,16 @@ enum ThemeManager {
                 shadowOpacity: 0.18
             )
         }
-        button.tintColor = palette.text
+        button.tintColor = iconColor
         button.backgroundColor = normalBackground
         button.layer.cornerRadius = 18
         button.layer.borderWidth = 2
         button.layer.borderColor = palette.border.cgColor
         button.clipsToBounds = false
+        if let currentImage {
+            button.setImage(currentImage, for: .normal)
+        }
+        button.imageView?.isHidden = false
         button.imageView?.contentMode = .scaleAspectFit
         applyRetroButtonPressState(button, isPressed: false, shadowColor: palette.border.cgColor, shadowOpacity: 0.18)
         button.setNeedsUpdateConfiguration()
