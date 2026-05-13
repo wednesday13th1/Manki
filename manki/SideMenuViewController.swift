@@ -2,9 +2,12 @@ import UIKit
 
 final class SideMenuViewController: UIViewController {
     private let menuWidth: CGFloat = 304
-    private let horizontalMargin = AppSpacing.s(16)
+    private let minMenuWidth: CGFloat = 260
+    private let horizontalMargin = AppSpacing.s(10)
     private let dimmingView = UIControl()
     private let menuContainer = UIView()
+    private let scrollView = UIScrollView()
+    private let contentView = UIView()
     private let menuStack = UIStackView()
     private let titleLabel = UILabel()
     private let subtitleLabel = UILabel()
@@ -61,6 +64,13 @@ final class SideMenuViewController: UIViewController {
         menuContainer.layer.shadowOffset = CGSize(width: 0, height: 10)
         menuContainer.layer.shadowRadius = 18
 
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.alwaysBounceVertical = false
+        scrollView.showsVerticalScrollIndicator = false
+        scrollView.clipsToBounds = true
+
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+
         menuHeaderBadge.translatesAutoresizingMaskIntoConstraints = false
         menuHeaderBadge.layer.cornerRadius = 16
         menuHeaderBadge.layer.borderWidth = 2
@@ -82,10 +92,12 @@ final class SideMenuViewController: UIViewController {
 
         view.addSubview(dimmingView)
         view.addSubview(menuContainer)
-        menuContainer.addSubview(menuHeaderBadge)
-        menuContainer.addSubview(titleLabel)
-        menuContainer.addSubview(subtitleLabel)
-        menuContainer.addSubview(menuStack)
+        menuContainer.addSubview(scrollView)
+        scrollView.addSubview(contentView)
+        contentView.addSubview(menuHeaderBadge)
+        contentView.addSubview(titleLabel)
+        contentView.addSubview(subtitleLabel)
+        contentView.addSubview(menuStack)
 
         menuWidthConstraint = menuContainer.widthAnchor.constraint(equalToConstant: menuWidth)
 
@@ -100,23 +112,34 @@ final class SideMenuViewController: UIViewController {
             menuContainer.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -AppSpacing.s(10)),
             menuContainer.trailingAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -horizontalMargin),
 
-            menuHeaderBadge.topAnchor.constraint(equalTo: menuContainer.topAnchor, constant: AppSpacing.s(18)),
-            menuHeaderBadge.leadingAnchor.constraint(equalTo: menuContainer.leadingAnchor, constant: AppSpacing.s(18)),
-            menuHeaderBadge.trailingAnchor.constraint(equalTo: menuContainer.trailingAnchor, constant: -AppSpacing.s(18)),
+            scrollView.topAnchor.constraint(equalTo: menuContainer.topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: menuContainer.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: menuContainer.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: menuContainer.bottomAnchor),
+
+            contentView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
+            contentView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
+            contentView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
+            contentView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
+            contentView.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor),
+
+            menuHeaderBadge.topAnchor.constraint(equalTo: contentView.topAnchor, constant: AppSpacing.s(18)),
+            menuHeaderBadge.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: AppSpacing.s(14)),
+            menuHeaderBadge.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -AppSpacing.s(14)),
 
             titleLabel.topAnchor.constraint(equalTo: menuHeaderBadge.topAnchor, constant: AppSpacing.s(12)),
-            titleLabel.leadingAnchor.constraint(equalTo: menuContainer.leadingAnchor, constant: AppSpacing.s(22)),
-            titleLabel.trailingAnchor.constraint(equalTo: menuContainer.trailingAnchor, constant: -AppSpacing.s(22)),
+            titleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: AppSpacing.s(18)),
+            titleLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -AppSpacing.s(18)),
 
             subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: AppSpacing.s(4)),
-            subtitleLabel.leadingAnchor.constraint(equalTo: menuContainer.leadingAnchor, constant: AppSpacing.s(22)),
-            subtitleLabel.trailingAnchor.constraint(equalTo: menuContainer.trailingAnchor, constant: -AppSpacing.s(22)),
+            subtitleLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: AppSpacing.s(18)),
+            subtitleLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -AppSpacing.s(18)),
             subtitleLabel.bottomAnchor.constraint(equalTo: menuHeaderBadge.bottomAnchor, constant: -AppSpacing.s(12)),
 
             menuStack.topAnchor.constraint(equalTo: menuHeaderBadge.bottomAnchor, constant: AppSpacing.s(20)),
-            menuStack.leadingAnchor.constraint(equalTo: menuContainer.leadingAnchor, constant: AppSpacing.s(18)),
-            menuStack.trailingAnchor.constraint(equalTo: menuContainer.trailingAnchor, constant: -AppSpacing.s(18)),
-            menuStack.bottomAnchor.constraint(lessThanOrEqualTo: menuContainer.bottomAnchor, constant: -AppSpacing.s(22))
+            menuStack.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: AppSpacing.s(12)),
+            menuStack.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -AppSpacing.s(12)),
+            menuStack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -AppSpacing.s(22))
         ])
         menuWidthConstraint?.isActive = true
 
@@ -175,7 +198,7 @@ final class SideMenuViewController: UIViewController {
             button.menuTitleLabel.textColor = palette.text
             button.iconView.isHidden = false
             button.iconView.alpha = 1
-            button.iconView.tintColor = palette.accentStrong
+            button.applyIconColor(button.iconColor)
             button.layer.borderColor = palette.border.cgColor
             button.layer.borderWidth = item.isSelected ? 2 : 1.5
             button.accessibilityTraits = item.isSelected ? [.button, .selected] : [.button]
@@ -206,7 +229,7 @@ final class SideMenuViewController: UIViewController {
     }
 
     private func updateMenuWidthIfNeeded() {
-        let availableWidth = max(220, view.safeAreaLayoutGuide.layoutFrame.width - (horizontalMargin * 2))
+        let availableWidth = max(minMenuWidth, view.safeAreaLayoutGuide.layoutFrame.width - (horizontalMargin * 2))
         let targetWidth = min(menuWidth, availableWidth)
         guard menuWidthConstraint?.constant != targetWidth else { return }
         menuWidthConstraint?.constant = targetWidth
@@ -260,10 +283,12 @@ final class SideMenuViewController: UIViewController {
 }
 
 private final class SideMenuRowButton: UIControl {
-    let iconView = UIImageView()
+    let iconView = UIImageView(image: UIImage(systemName: "circle.fill"))
     let menuTitleLabel = UILabel()
     private let iconContainer = UIView()
     private let rowStack = UIStackView()
+    private var currentSymbolName = "circle.fill"
+    let iconColor = UIColor(red: 0.16, green: 0.10, blue: 0.09, alpha: 1)
     var itemIndex = 0
     var onHighlightChanged: (() -> Void)?
 
@@ -290,15 +315,28 @@ private final class SideMenuRowButton: UIControl {
 
     func configure(title: String, icon: UIImage?, route: AppRoute) {
         menuTitleLabel.text = title
-        let configuration = UIImage.SymbolConfiguration(pointSize: 24, weight: .semibold, scale: .medium)
-        let resolvedIcon = icon
-            ?? UIImage(systemName: route.systemImageName, withConfiguration: configuration)
-            ?? UIImage(systemName: "circle.fill", withConfiguration: configuration)
-        iconView.image = resolvedIcon?.withRenderingMode(.alwaysTemplate)
+        currentSymbolName = route.systemImageName.isEmpty ? "circle.fill" : route.systemImageName
+        iconView.image = makeIconImage(symbolName: currentSymbolName, color: iconColor)
+            ?? icon?.withTintColor(iconColor, renderingMode: .alwaysOriginal)
+            ?? UIImage(systemName: "circle.fill")?.withTintColor(iconColor, renderingMode: .alwaysOriginal)
         iconView.isHidden = false
         iconView.alpha = 1
-        iconView.tintColor = ThemeManager.palette().accentStrong
+        iconView.tintColor = iconColor
         accessibilityLabel = title
+    }
+
+    func applyIconColor(_ color: UIColor) {
+        iconView.image = makeIconImage(symbolName: currentSymbolName, color: color)
+        iconView.tintColor = color
+        iconView.isHidden = false
+        iconView.alpha = 1
+    }
+
+    private func makeIconImage(symbolName: String, color: UIColor) -> UIImage? {
+        let configuration = UIImage.SymbolConfiguration(pointSize: 24, weight: .semibold, scale: .medium)
+        let symbol = UIImage(systemName: symbolName, withConfiguration: configuration)
+            ?? UIImage(systemName: "circle.fill", withConfiguration: configuration)
+        return symbol?.withTintColor(color, renderingMode: .alwaysOriginal)
     }
 
     private func setup() {
@@ -315,7 +353,7 @@ private final class SideMenuRowButton: UIControl {
         iconView.translatesAutoresizingMaskIntoConstraints = false
         iconView.contentMode = .scaleAspectFit
         iconView.isHidden = false
-        iconView.tintColor = ThemeManager.palette().accentStrong
+        iconView.tintColor = iconColor
         iconView.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 24, weight: .semibold)
         iconView.layer.zPosition = 2
         iconView.setContentHuggingPriority(.required, for: .horizontal)
@@ -325,7 +363,8 @@ private final class SideMenuRowButton: UIControl {
         menuTitleLabel.numberOfLines = 2
         menuTitleLabel.adjustsFontForContentSizeCategory = true
         menuTitleLabel.adjustsFontSizeToFitWidth = true
-        menuTitleLabel.minimumScaleFactor = 0.82
+        menuTitleLabel.minimumScaleFactor = 0.7
+        menuTitleLabel.lineBreakMode = .byTruncatingTail
         menuTitleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         rowStack.translatesAutoresizingMaskIntoConstraints = false
@@ -342,16 +381,16 @@ private final class SideMenuRowButton: UIControl {
         addSubview(rowStack)
 
         NSLayoutConstraint.activate([
-            rowStack.topAnchor.constraint(equalTo: topAnchor, constant: AppSpacing.s(12)),
-            rowStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: AppSpacing.s(18)),
-            rowStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -AppSpacing.s(18)),
-            rowStack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -AppSpacing.s(12)),
-            iconContainer.widthAnchor.constraint(equalToConstant: 30),
-            iconContainer.heightAnchor.constraint(equalToConstant: 30),
+            rowStack.topAnchor.constraint(equalTo: topAnchor, constant: AppSpacing.s(10)),
+            rowStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: AppSpacing.s(14)),
+            rowStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -AppSpacing.s(14)),
+            rowStack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -AppSpacing.s(10)),
+            iconContainer.widthAnchor.constraint(equalToConstant: 28),
+            iconContainer.heightAnchor.constraint(equalToConstant: 28),
             iconView.centerXAnchor.constraint(equalTo: iconContainer.centerXAnchor),
             iconView.centerYAnchor.constraint(equalTo: iconContainer.centerYAnchor),
-            iconView.widthAnchor.constraint(equalToConstant: 24),
-            iconView.heightAnchor.constraint(equalToConstant: 24)
+            iconView.widthAnchor.constraint(equalToConstant: 22),
+            iconView.heightAnchor.constraint(equalToConstant: 22)
         ])
     }
 }

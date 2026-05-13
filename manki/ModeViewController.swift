@@ -84,7 +84,7 @@ final class ModeViewController: UIViewController {
         menuButton.addTarget(self, action: #selector(openSideMenu), for: .touchUpInside)
 
         settingsButton.translatesAutoresizingMaskIntoConstraints = false
-        let settingsIcon = UIImage(systemName: "gearshape.fill", withConfiguration: topButtonSymbolConfiguration)?
+        let settingsIcon = UIImage(systemName: "gearshape", withConfiguration: topButtonSymbolConfiguration)?
             .withRenderingMode(.alwaysTemplate)
         settingsButton.setImage(settingsIcon, for: .normal)
         settingsButton.imageView?.contentMode = .scaleAspectFit
